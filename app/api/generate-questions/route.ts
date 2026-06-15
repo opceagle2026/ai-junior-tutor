@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { genAI, GEMINI_MODEL } from "@/lib/gemini";
+import { getGeminiErrorMessage } from "@/lib/geminiError";
 import { supabase } from "@/lib/supabaseClient";
 
 type GeneratedQuestion = {
@@ -19,7 +20,16 @@ function safeJsonParse(text: string): GeneratedQuestion[] {
     .replace(/```/g, "")
     .trim();
 
-  return JSON.parse(cleaned) as GeneratedQuestion[];
+  const jsonStart = cleaned.indexOf("[");
+  const jsonEnd = cleaned.lastIndexOf("]");
+
+  if (jsonStart === -1 || jsonEnd === -1) {
+    throw new Error("AI 回傳格式錯誤，找不到題目 JSON 陣列。");
+  }
+
+  const jsonText = cleaned.slice(jsonStart, jsonEnd + 1);
+
+  return JSON.parse(jsonText) as GeneratedQuestion[];
 }
 
 export async function POST(request: NextRequest) {
@@ -130,7 +140,7 @@ ${source.extracted_text || ""}
   } catch (error) {
     console.error("Generate questions error:", error);
 
-    const message = error instanceof Error ? error.message : "AI 出題失敗";
+    const message = getGeminiErrorMessage(error);
 
     return NextResponse.json({ error: message }, { status: 500 });
   }
