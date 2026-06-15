@@ -4,8 +4,8 @@ import { useRef, useState } from "react";
 import { ACCEPTED_EXTENSIONS, ACCEPTED_MIME_TYPES } from "@/types/sources";
 
 type SourceUploadProps = {
-  file: File | null;
-  onFileSelect: (file: File | null) => void;
+  files: File[];
+  onFilesSelect: (files: File[]) => void;
 };
 
 function formatFileSize(bytes: number): string {
@@ -27,28 +27,57 @@ function getFileTypeLabel(file: File): string {
 
 function isAcceptedFile(file: File): boolean {
   const extension = getFileExtension(file.name);
-  if (ACCEPTED_EXTENSIONS.includes(extension as (typeof ACCEPTED_EXTENSIONS)[number])) {
+
+  if (
+    ACCEPTED_EXTENSIONS.includes(
+      extension as (typeof ACCEPTED_EXTENSIONS)[number],
+    )
+  ) {
     return true;
   }
-  return ACCEPTED_MIME_TYPES.includes(file.type as (typeof ACCEPTED_MIME_TYPES)[number]);
+
+  return ACCEPTED_MIME_TYPES.includes(
+    file.type as (typeof ACCEPTED_MIME_TYPES)[number],
+  );
 }
 
-export function SourceUpload({ file, onFileSelect }: SourceUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+function getFileKey(file: File): string {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
+export function SourceUpload({ files, onFilesSelect }: SourceUploadProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function handleFile(fileList: FileList | null) {
-    const selected = fileList?.[0];
-    if (!selected) return;
+  function handleFiles(fileList: FileList | null) {
+    const selectedFiles = Array.from(fileList ?? []);
 
-    if (!isAcceptedFile(selected)) {
+    if (selectedFiles.length === 0) return;
+
+    const acceptedFiles = selectedFiles.filter(isAcceptedFile);
+    const rejectedCount = selectedFiles.length - acceptedFiles.length;
+
+    if (acceptedFiles.length === 0) {
       setError("僅支援 PDF、PNG、JPG、JPEG、WEBP 格式。");
       return;
     }
 
-    setError(null);
-    onFileSelect(selected);
+    const existingKeys = new Set(files.map(getFileKey));
+    const nextFiles = [
+      ...files,
+      ...acceptedFiles.filter((file) => !existingKeys.has(getFileKey(file))),
+    ];
+
+    if (rejectedCount > 0) {
+      setError(`已略過 ${rejectedCount} 個不支援的檔案。`);
+    } else {
+      setError(null);
+    }
+
+    onFilesSelect(nextFiles);
   }
 
   function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
@@ -64,23 +93,66 @@ export function SourceUpload({ file, onFileSelect }: SourceUploadProps) {
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setIsDragging(false);
-    handleFile(event.dataTransfer.files);
+    handleFiles(event.dataTransfer.files);
   }
 
-  const accept = ACCEPTED_EXTENSIONS.join(",");
+  function handleClearFiles() {
+    setError(null);
+    onFilesSelect([]);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
+    }
+  }
+
+  function handleRemoveFile(fileToRemove: File) {
+    const removeKey = getFileKey(fileToRemove);
+    onFilesSelect(files.filter((file) => getFileKey(file) !== removeKey));
+  }
+
+  const fileAccept = ACCEPTED_EXTENSIONS.join(",");
+  const cameraAccept = "image/png,image/jpeg,image/webp,image/*";
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold text-slate-900">上傳區</h2>
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">上傳區</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          可批次上傳 PDF、圖片，也可以直接用手機、平板或筆電拍照輸入教材。
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 transition hover:border-blue-400 hover:bg-blue-100"
+        >
+          批次選擇 PDF / 圖片檔
+        </button>
+
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 transition hover:border-emerald-400 hover:bg-emerald-100"
+        >
+          拍照輸入教材
+        </button>
+      </div>
 
       <div
         role="button"
         tabIndex={0}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => fileInputRef.current?.click()}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            inputRef.current?.click();
+            fileInputRef.current?.click();
           }
         }}
         onDragOver={handleDragOver}
@@ -112,17 +184,30 @@ export function SourceUpload({ file, onFileSelect }: SourceUploadProps) {
 
         <div className="text-center">
           <p className="text-sm font-medium text-slate-900">
-            拖曳檔案到此處，或點擊選擇檔案
+            拖曳多個檔案到此處，或點擊批次選擇檔案
           </p>
-          <p className="mt-1 text-xs text-slate-500">支援 PDF、PNG、JPG、JPEG、WEBP</p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            支援 PDF、PNG、JPG、JPEG、WEBP；手機可使用「拍照輸入教材」
+          </p>
         </div>
 
         <input
-          ref={inputRef}
+          ref={fileInputRef}
           type="file"
-          accept={accept}
+          accept={fileAccept}
+          multiple
           className="hidden"
-          onChange={(event) => handleFile(event.target.files)}
+          onChange={(event) => handleFiles(event.target.files)}
+        />
+
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept={cameraAccept}
+          capture="environment"
+          className="hidden"
+          onChange={(event) => handleFiles(event.target.files)}
         />
       </div>
 
@@ -132,23 +217,69 @@ export function SourceUpload({ file, onFileSelect }: SourceUploadProps) {
         </p>
       )}
 
-      {file && (
+      {files.length > 0 && (
         <div className="rounded-lg border border-blue-100 bg-white px-4 py-3">
-          <p className="text-sm font-medium text-slate-900">已選擇檔案</p>
-          <dl className="mt-2 grid gap-1 text-sm text-slate-600 sm:grid-cols-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <dt className="text-xs text-slate-500">檔名</dt>
-              <dd className="break-all font-medium text-slate-800">{file.name}</dd>
+              <p className="text-sm font-medium text-slate-900">
+                已選擇 {files.length} 個檔案
+              </p>
+
+              <p className="mt-1 text-sm text-slate-500">
+                總大小：{formatFileSize(totalSize)}
+              </p>
             </div>
-            <div>
-              <dt className="text-xs text-slate-500">檔案類型</dt>
-              <dd className="font-medium text-slate-800">{getFileTypeLabel(file)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-slate-500">檔案大小</dt>
-              <dd className="font-medium text-slate-800">{formatFileSize(file.size)}</dd>
-            </div>
-          </dl>
+
+            <button
+              type="button"
+              onClick={handleClearFiles}
+              className="w-fit rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              清空檔案
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {files.map((selectedFile) => (
+              <div
+                key={getFileKey(selectedFile)}
+                className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <dl className="grid flex-1 gap-2 text-sm text-slate-600 sm:grid-cols-3">
+                    <div>
+                      <dt className="text-xs text-slate-500">檔名</dt>
+                      <dd className="break-all font-medium text-slate-800">
+                        {selectedFile.name}
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt className="text-xs text-slate-500">檔案類型</dt>
+                      <dd className="font-medium text-slate-800">
+                        {getFileTypeLabel(selectedFile)}
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt className="text-xs text-slate-500">檔案大小</dt>
+                      <dd className="font-medium text-slate-800">
+                        {formatFileSize(selectedFile.size)}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFile(selectedFile)}
+                    className="w-fit rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-white"
+                  >
+                    移除
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>

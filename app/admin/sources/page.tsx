@@ -44,6 +44,20 @@ function getFileType(file: File): string {
   return mimeMap[extension] ?? "application/octet-stream";
 }
 
+function getTitleForFile(baseTitle: string, file: File, totalFiles: number) {
+  const trimmedTitle = baseTitle.trim();
+
+  if (!trimmedTitle) {
+    return file.name;
+  }
+
+  if (totalFiles === 1) {
+    return trimmedTitle;
+  }
+
+  return `${trimmedTitle} - ${file.name}`;
+}
+
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
 
@@ -57,7 +71,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 export default function SourcesPage() {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [formValues, setFormValues] =
     useState<SourceFormValues>(initialFormValues);
   const [sources, setSources] = useState<SourceItem[]>([]);
@@ -177,24 +191,38 @@ export default function SourcesPage() {
   }
 
   async function handleAddSource() {
-    if (!file) return;
+    if (files.length === 0) return;
 
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      const newSource = await uploadSource({
-        title: formValues.title.trim(),
-        grade: formValues.grade,
-        file,
-        fileType: getFileType(file),
-      });
+      const uploadedSources: SourceItem[] = [];
 
-      setSources((prev) => [newSource, ...prev]);
-      setFile(null);
+      for (const selectedFile of files) {
+        const newSource = await uploadSource({
+          title: getTitleForFile(
+            formValues.title,
+            selectedFile,
+            files.length,
+          ),
+          grade: formValues.grade,
+          file: selectedFile,
+          fileType: getFileType(selectedFile),
+        });
+
+        uploadedSources.push(newSource);
+      }
+
+      setSources((prev) => [...uploadedSources, ...prev]);
+      setFiles([]);
       setFormValues(initialFormValues);
+
+      if (uploadedSources.length === 1) {
+        setErrorMessage(null);
+      }
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, "上傳教材失敗"));
+      setErrorMessage(getErrorMessage(error, "批次上傳教材失敗"));
     } finally {
       setIsSubmitting(false);
     }
@@ -260,7 +288,7 @@ export default function SourcesPage() {
               教材管理
             </h1>
             <p className="mt-2 text-base leading-7 text-slate-600">
-              上傳教材並填寫標題與年級，或自動搜尋網路教材。科目與單元將由 AI 分析後自動填入。
+              可批次上傳教材、拍照輸入教材，或自動搜尋網路教材。科目與單元將由 AI 分析後自動填入。
             </p>
           </div>
         </header>
@@ -363,15 +391,18 @@ export default function SourcesPage() {
         </section>
 
         <div className="flex flex-col gap-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <SourceUpload file={file} onFileSelect={setFile} />
+          <SourceUpload files={files} onFilesSelect={setFiles} />
           <div className="border-t border-slate-100" />
           <SourceForm
             values={formValues}
             onChange={setFormValues}
             onSubmit={handleAddSource}
-            disabled={!file || !formValues.title.trim() || isSubmitting}
+            disabled={files.length === 0 || isSubmitting}
             isSubmitting={isSubmitting}
           />
+          <p className="text-sm text-slate-500">
+            批次上傳時，若未填標題，系統會以各檔案名稱作為教材標題；若有填標題，會以「標題 - 檔名」建立多筆教材。
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
