@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getGeminiErrorMessage } from "@/lib/geminiError";
 
 export async function POST(request: NextRequest) {
   try {
@@ -6,12 +7,16 @@ export async function POST(request: NextRequest) {
 
     if (!sourceId) {
       return NextResponse.json(
-        { error: "缺少 sourceId" },
-        { status: 400 }
+        {
+          error: "缺少 sourceId",
+        },
+        {
+          status: 400,
+        }
       );
     }
 
-    // 1. AI分析教材
+    // 1. AI 分析教材
     const analyzeResponse = await fetch(
       `${process.env.NEXT_PUBLIC_SITE_URL}/api/analyze-source`,
       {
@@ -33,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. AI出題
+    // 2. AI 出題
     const questionResponse = await fetch(
       `${process.env.NEXT_PUBLIC_SITE_URL}/api/generate-questions`,
       {
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     if (!questionResponse.ok) {
       throw new Error(
-        questionResult.error || "AI出題失敗"
+        questionResult.error || "AI 出題失敗"
       );
     }
 
@@ -65,10 +70,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "自動建立題庫失敗",
+        error: getGeminiErrorMessage(error),
       },
       {
         status: 500,
