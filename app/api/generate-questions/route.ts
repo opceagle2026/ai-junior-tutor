@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { genAI, GEMINI_MODEL } from "@/lib/gemini";
 import { getGeminiErrorMessage } from "@/lib/geminiError";
+import { withGeminiRetry } from "@/lib/geminiRetry";
 import { supabase } from "@/lib/supabaseClient";
 
 type GeneratedQuestion = {
@@ -100,7 +101,10 @@ ${source.summary || ""}
 ${source.extracted_text || ""}
 `;
 
-    const result = await model.generateContent(prompt);
+    const result = await withGeminiRetry(() =>
+      model.generateContent(prompt),
+    );
+
     const text = result.response.text();
     const questions = safeJsonParse(text);
 
