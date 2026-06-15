@@ -7,6 +7,7 @@ import type { QuestionItem } from "@/lib/questions";
 import { saveWrongAnswer } from "@/lib/wrongAnswers";
 
 type AnswerMap = Record<string, string>;
+type TutorHintMap = Record<string, string>;
 
 export default function PracticePage() {
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
@@ -18,12 +19,19 @@ export default function PracticePage() {
   const [message, setMessage] = useState("");
   const [wrongSavedCount, setWrongSavedCount] = useState(0);
 
+  const [tutorHints, setTutorHints] = useState<TutorHintMap>({});
+  const [loadingHintQuestionId, setLoadingHintQuestionId] = useState<
+    string | null
+  >(null);
+
   async function handleStartPractice() {
     setIsLoading(true);
     setMessage("");
     setIsSubmitted(false);
     setWrongSavedCount(0);
     setAnswers({});
+    setTutorHints({});
+    setLoadingHintQuestionId(null);
 
     try {
       const data = await fetchPracticeQuestions(questionCount);
@@ -89,6 +97,48 @@ export default function PracticePage() {
       setMessage(error instanceof Error ? error.message : "儲存錯題失敗");
     } finally {
       setIsSubmittingAnswers(false);
+    }
+  }
+
+  async function handleTutorHint(question: QuestionItem) {
+    if (loadingHintQuestionId !== null) return;
+
+    setLoadingHintQuestionId(question.id);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/tutor-hint", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          grade: question.grade,
+          subject: question.subject,
+          unit: question.unit,
+          knowledgePoint: question.knowledge_point,
+          questionText: question.question_text,
+          options: question.options,
+          answer: question.answer,
+          explanation: question.explanation,
+          studentAnswer: answers[question.id] ?? "",
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "AI 家教提示產生失敗");
+      }
+
+      setTutorHints((prev) => ({
+        ...prev,
+        [question.id]: result.hint || "AI 沒有產生提示內容。",
+      }));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "AI 家教提示產生失敗");
+    } finally {
+      setLoadingHintQuestionId(null);
     }
   }
 
@@ -186,6 +236,8 @@ export default function PracticePage() {
             {questions.map((question, index) => {
               const studentAnswer = answers[question.id] ?? "";
               const correct = isCorrect(question);
+              const tutorHint = tutorHints[question.id];
+              const isLoadingHint = loadingHintQuestionId === question.id;
 
               return (
                 <article
@@ -281,6 +333,26 @@ export default function PracticePage() {
                       <p className="mt-3 whitespace-pre-wrap">
                         詳解：{question.explanation}
                       </p>
+
+                      <button
+                        onClick={() => handleTutorHint(question)}
+                        disabled={loadingHintQuestionId !== null}
+                        className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300"
+                      >
+                        {isLoadingHint ? "AI 思考中..." : "我不會，請提示"}
+                      </button>
+
+                      {tutorHint && (
+                        <div className="mt-4 rounded-xl border border-indigo-200 bg-white p-4">
+                          <p className="mb-2 font-semibold text-indigo-800">
+                            AI 家教提示
+                          </p>
+
+                          <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                            {tutorHint}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </article>
