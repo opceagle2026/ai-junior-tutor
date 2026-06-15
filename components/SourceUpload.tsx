@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ACCEPTED_EXTENSIONS, ACCEPTED_MIME_TYPES } from "@/types/sources";
 
 type SourceUploadProps = {
@@ -47,10 +47,32 @@ function getFileKey(file: File): string {
 
 export function SourceUpload({ files, onFilesSelect }: SourceUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!folderInputRef.current) return;
+
+    folderInputRef.current.setAttribute("webkitdirectory", "");
+    folderInputRef.current.setAttribute("directory", "");
+  }, []);
+
+  function resetInputs() {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    if (folderInputRef.current) {
+      folderInputRef.current.value = "";
+    }
+
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
+    }
+  }
 
   function handleFiles(fileList: FileList | null) {
     const selectedFiles = Array.from(fileList ?? []);
@@ -62,6 +84,7 @@ export function SourceUpload({ files, onFilesSelect }: SourceUploadProps) {
 
     if (acceptedFiles.length === 0) {
       setError("僅支援 PDF、PNG、JPG、JPEG、WEBP 格式。");
+      resetInputs();
       return;
     }
 
@@ -78,6 +101,7 @@ export function SourceUpload({ files, onFilesSelect }: SourceUploadProps) {
     }
 
     onFilesSelect(nextFiles);
+    resetInputs();
   }
 
   function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
@@ -99,14 +123,7 @@ export function SourceUpload({ files, onFilesSelect }: SourceUploadProps) {
   function handleClearFiles() {
     setError(null);
     onFilesSelect([]);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
-    if (cameraInputRef.current) {
-      cameraInputRef.current.value = "";
-    }
+    resetInputs();
   }
 
   function handleRemoveFile(fileToRemove: File) {
@@ -115,7 +132,7 @@ export function SourceUpload({ files, onFilesSelect }: SourceUploadProps) {
   }
 
   const fileAccept = ACCEPTED_EXTENSIONS.join(",");
-  const cameraAccept = "image/png,image/jpeg,image/webp,image/*";
+  const imageAccept = "image/png,image/jpeg,image/webp,image/*";
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
   return (
@@ -123,17 +140,25 @@ export function SourceUpload({ files, onFilesSelect }: SourceUploadProps) {
       <div>
         <h2 className="text-lg font-semibold text-slate-900">上傳區</h2>
         <p className="mt-1 text-sm text-slate-600">
-          可批次上傳 PDF、圖片，也可以直接用手機、平板或筆電拍照輸入教材。
+          可上傳 PDF、圖片；若系統檔案視窗無法多選，建議把檔案放進同一個資料夾後，用「選擇資料夾批次匯入」。
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 transition hover:border-blue-400 hover:bg-blue-100"
         >
-          批次選擇 PDF / 圖片檔
+          選擇 PDF / 圖片檔
+        </button>
+
+        <button
+          type="button"
+          onClick={() => folderInputRef.current?.click()}
+          className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-medium text-violet-700 transition hover:border-violet-400 hover:bg-violet-100"
+        >
+          選擇資料夾批次匯入
         </button>
 
         <button
@@ -184,11 +209,11 @@ export function SourceUpload({ files, onFilesSelect }: SourceUploadProps) {
 
         <div className="text-center">
           <p className="text-sm font-medium text-slate-900">
-            拖曳多個檔案到此處，或點擊批次選擇檔案
+            拖曳多個檔案到此處，或點擊選擇檔案
           </p>
 
           <p className="mt-1 text-xs text-slate-500">
-            支援 PDF、PNG、JPG、JPEG、WEBP；手機可使用「拍照輸入教材」
+            支援 PDF、PNG、JPG、JPEG、WEBP；批次大量匯入建議使用資料夾
           </p>
         </div>
 
@@ -202,9 +227,18 @@ export function SourceUpload({ files, onFilesSelect }: SourceUploadProps) {
         />
 
         <input
+          ref={folderInputRef}
+          type="file"
+          accept={fileAccept}
+          multiple
+          className="hidden"
+          onChange={(event) => handleFiles(event.target.files)}
+        />
+
+        <input
           ref={cameraInputRef}
           type="file"
-          accept={cameraAccept}
+          accept={imageAccept}
           capture="environment"
           className="hidden"
           onChange={(event) => handleFiles(event.target.files)}
