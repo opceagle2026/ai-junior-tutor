@@ -16,9 +16,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
     // 1. AI 分析教材
     const analyzeResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/analyze-source`,
+      `${siteUrl}/api/analyze-source`,
       {
         method: "POST",
         headers: {
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     // 2. AI 出題
     const questionResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/generate-questions`,
+      `${siteUrl}/api/generate-questions`,
       {
         method: "POST",
         headers: {

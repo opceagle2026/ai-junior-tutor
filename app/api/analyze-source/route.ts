@@ -17,12 +17,24 @@ function safeJsonParse(text: string): GeminiAnalysis {
     .replace(/```/g, "")
     .trim();
 
-  return JSON.parse(cleaned) as GeminiAnalysis;
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}");
+
+  if (jsonStart === -1 || jsonEnd === -1) {
+    throw new Error("AI 回傳格式錯誤，找不到 JSON 內容。");
+  }
+
+  const jsonText = cleaned.slice(jsonStart, jsonEnd + 1);
+
+  return JSON.parse(jsonText) as GeminiAnalysis;
 }
 
 export async function POST(request: NextRequest) {
+  let sourceId: string | undefined;
+
   try {
-    const { sourceId } = await request.json();
+    const body = await request.json();
+    sourceId = body.sourceId;
 
     if (!sourceId) {
       return NextResponse.json({ error: "缺少 sourceId" }, { status: 400 });
@@ -129,6 +141,13 @@ ${source.extracted_text || source.summary || ""}
     console.error("Analyze source error:", error);
 
     const message = getGeminiErrorMessage(error);
+
+    if (sourceId) {
+      await supabase
+        .from("sources")
+        .update({ status: "failed" })
+        .eq("id", sourceId);
+    }
 
     return NextResponse.json({ error: message }, { status: 500 });
   }
