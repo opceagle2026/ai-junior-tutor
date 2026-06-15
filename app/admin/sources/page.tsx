@@ -26,8 +26,11 @@ type SearchMaterial = {
 
 function getFileType(file: File): string {
   if (file.type) return file.type;
+
   const dotIndex = file.name.lastIndexOf(".");
+
   if (dotIndex === -1) return "application/octet-stream";
+
   const extension = file.name.slice(dotIndex + 1).toLowerCase();
 
   const mimeMap: Record<string, string> = {
@@ -46,6 +49,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
   if (typeof error === "object" && error !== null && "message" in error) {
     const message = (error as { message: unknown }).message;
+
     if (typeof message === "string" && message) return message;
   }
 
@@ -88,7 +92,7 @@ export default function SourcesPage() {
   }, [loadSources]);
 
   async function handleSearchMaterials() {
-    if (!searchKeyword.trim()) return;
+    if (!searchKeyword.trim() || addingUrl !== null) return;
 
     setIsSearching(true);
     setSearchMessage("");
@@ -122,7 +126,7 @@ export default function SourcesPage() {
   }
 
   async function handleAddWebMaterial(item: SearchMaterial) {
-    if (!item.url) return;
+    if (!item.url || addingUrl !== null) return;
 
     setAddingUrl(item.url);
     setErrorMessage(null);
@@ -162,6 +166,8 @@ export default function SourcesPage() {
         `完成！教材已分析並自動建立 ${result.count ?? 0} 題。`,
       );
     } catch (error) {
+      await loadSources();
+
       setSearchMessage(
         getErrorMessage(error, "加入教材或自動建立題庫失敗"),
       );
@@ -296,7 +302,7 @@ export default function SourcesPage() {
 
             <button
               onClick={handleSearchMaterials}
-              disabled={!searchKeyword.trim() || isSearching}
+              disabled={!searchKeyword.trim() || isSearching || addingUrl !== null}
               className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white hover:bg-blue-700 disabled:bg-slate-300"
             >
               {isSearching ? "搜尋中..." : "搜尋教材"}
@@ -336,12 +342,14 @@ export default function SourcesPage() {
 
                     <button
                       onClick={() => handleAddWebMaterial(item)}
-                      disabled={addingUrl === item.url}
+                      disabled={addingUrl !== null}
                       className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:bg-slate-300"
                     >
                       {addingUrl === item.url
                         ? "自動建立中..."
-                        : "加入教材並自動出題"}
+                        : addingUrl !== null
+                          ? "請稍候..."
+                          : "加入教材並自動出題"}
                     </button>
                   </div>
 
