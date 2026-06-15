@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { genAI, GEMINI_MODEL } from "@/lib/gemini";
+import { getGeminiErrorMessage } from "@/lib/geminiError";
 import { supabase } from "@/lib/supabaseClient";
-import { genAI } from "@/lib/gemini";
 
 type GeminiAnalysis = {
   subject: string;
@@ -42,34 +43,16 @@ export async function POST(request: NextRequest) {
       throw new Error(sourceError?.message || "找不到教材資料");
     }
 
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from("source-files")
-      .download(source.file_path);
-
-    if (downloadError || !fileData) {
-      throw new Error(downloadError?.message || "下載檔案失敗");
-    }
-
-    const arrayBuffer = await fileData.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: GEMINI_MODEL,
     });
 
     const prompt = `
 你是一位熟悉台灣國中課程的家教老師。
 
-請分析上傳的教材。
+請分析以下教材內容，判斷科目、單元與知識點。
 
-請判斷：
-1. 科目（國文、英文、數學、自然、社會）
-2. 所屬單元
-3. 三到十個知識點
-4. 從教材擷取主要文字內容
-5. 100字以內摘要
-
-只能回傳 JSON。
+只能回傳 JSON，不要加入 markdown、不要加入說明。
 
 格式：
 {
@@ -83,25 +66,43 @@ export async function POST(request: NextRequest) {
 年級：
 ${source.grade}
 
-檔名：
+檔名或標題：
 ${source.file_name}
 
-不要加入 markdown。
-不要加入 \`\`\`json。
-不要加入任何說明。
+教材內容：
+${source.extracted_text || source.summary || ""}
 `;
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64,
-          mimeType: source.file_type || "application/pdf",
-        },
-      },
-      prompt,
-    ]);
+    let text = "";
 
-    const text = result.response.text();
+    if (source.file_type === "web") {
+      const result = await model.generateContent(prompt);
+      text = result.response.text();
+    } else {
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from("source-files")
+        .download(source.file_path);
+
+      if (downloadError || !fileData) {
+        throw new Error(downloadError?.message || "下載檔案失敗");
+      }
+
+      const arrayBuffer = await fileData.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString("base64");
+
+      const result = await model.generateContent([
+        {
+          inlineData: {
+            data: base64,
+            mimeType: source.file_type || "application/pdf",
+          },
+        },
+        prompt,
+      ]);
+
+      text = result.response.text();
+    }
+
     const analysis = safeJsonParse(text);
 
     const { data: updated, error: updateError } = await supabase
@@ -127,7 +128,7 @@ ${source.file_name}
   } catch (error) {
     console.error("Analyze source error:", error);
 
-    const message = error instanceof Error ? error.message : "AI 分析失敗";
+    const message = getGeminiErrorMessage(error);
 
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { genAI, GEMINI_MODEL } from "@/lib/gemini";
 import { supabase } from "@/lib/supabaseClient";
-import { genAI } from "@/lib/gemini";
 
 type GeneratedQuestion = {
   knowledgePoint: string;
@@ -45,13 +45,13 @@ export async function POST(request: NextRequest) {
     }
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: GEMINI_MODEL,
     });
 
     const prompt = `
 你是一位台灣國中家教老師，請根據以下教材內容產生國中練習題。
 
-請只回傳 JSON array，不要加入任何說明、markdown 或 \`\`\`json。
+請只回傳 JSON array，不要加入任何說明、markdown 或 code fence。
 
 每一題格式如下：
 
@@ -73,6 +73,9 @@ export async function POST(request: NextRequest) {
 4. 每題都要有答案與詳解。
 5. 難度請平均分配基礎、中等、進階。
 6. 請產生 ${count} 題。
+7. 如果教材內容不足，請產生最貼近教材主題的國中基礎練習題。
+8. 題目文字要清楚，避免只寫「下列何者正確」但沒有情境。
+9. 答案請與 options 格式一致，例如選擇題答案可寫「A」或「A. ...」。
 
 教材資訊：
 年級：${source.grade}

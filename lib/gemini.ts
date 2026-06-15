@@ -1,9 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = process.env.GEMINI_API_KEY;
+export const genAI = new GoogleGenerativeAI(
+  process.env.GEMINI_API_KEY!,
+);
 
-if (!apiKey) {
-  throw new Error("Missing GEMINI_API_KEY");
-}
-
-export const genAI = new GoogleGenerativeAI(apiKey);
+export const GEMINI_MODEL = "gemini-2.0-flash";
