@@ -7,6 +7,7 @@ export default function Home() {
     { title: "AI分析", href: "/admin/ai-analysis" },
     { title: "線上測驗", href: "/practice" },
     { title: "錯題庫", href: "/wrong-answers" },
+    { title: "錯題複習", href: "/wrong-review" },
     { title: "學習統計", href: "/stats" },
   ] as const;
 
@@ -15,7 +16,10 @@ export default function Home() {
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16 sm:py-20">
         <header className="flex flex-col gap-4">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200/60 bg-white px-3 py-1 text-sm font-medium text-blue-700 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-blue-500" aria-hidden="true" />
+            <span
+              className="h-2 w-2 rounded-full bg-blue-500"
+              aria-hidden="true"
+            />
             AI 輔助學習流程
           </div>
 
@@ -69,8 +73,9 @@ export default function Home() {
                     <h2 className="text-lg font-semibold tracking-tight text-slate-900">
                       {card.title}
                     </h2>
+
                     <p className="text-sm leading-6 text-slate-600">
-                      點擊進入（僅 UI 示意）
+                      點擊進入
                     </p>
                   </div>
 
@@ -78,6 +83,7 @@ export default function Home() {
                     <span className="opacity-0 transition-opacity group-hover:opacity-100">
                       開啟
                     </span>
+
                     <svg
                       viewBox="0 0 20 20"
                       fill="none"
@@ -106,7 +112,7 @@ export default function Home() {
         </section>
 
         <footer className="pt-2 text-sm text-slate-500">
-          先完成首頁 UI（無登入、無資料庫）。
+          AI 國中家教題庫 MVP：教材、題庫、測驗、錯題複習與學習統計。
         </footer>
       </main>
     </div>
