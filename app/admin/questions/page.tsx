@@ -1,10 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchQuestions, type QuestionItem } from "@/lib/questions";
 import { fetchSources } from "@/lib/sources";
 import type { SourceItem } from "@/types/sources";
+import { SUPPORTED_SUBJECTS } from "@/types/subjects";
+
+const SUBJECT_FILTERS = ["全部科目", ...SUPPORTED_SUBJECTS] as const;
+const GRADE_FILTERS = ["全部年級", "國一", "國二", "國三"] as const;
+
+type SubjectFilter = (typeof SUBJECT_FILTERS)[number];
+type GradeFilter = (typeof GRADE_FILTERS)[number];
 
 export default function QuestionsPage() {
   const [sources, setSources] = useState<SourceItem[]>([]);
@@ -14,6 +21,22 @@ export default function QuestionsPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [message, setMessage] = useState("");
+
+  const [subjectFilter, setSubjectFilter] =
+    useState<SubjectFilter>("全部科目");
+  const [gradeFilter, setGradeFilter] = useState<GradeFilter>("全部年級");
+
+  const filteredQuestions = useMemo(() => {
+    return questions.filter((question) => {
+      const matchesSubject =
+        subjectFilter === "全部科目" || question.subject === subjectFilter;
+
+      const matchesGrade =
+        gradeFilter === "全部年級" || question.grade === gradeFilter;
+
+      return matchesSubject && matchesGrade;
+    });
+  }, [questions, subjectFilter, gradeFilter]);
 
   async function loadQuestions() {
     setIsLoadingQuestions(true);
@@ -34,7 +57,7 @@ export default function QuestionsPage() {
         const data = await fetchSources();
 
         const completedSources = data.filter(
-          (item) => item.status === "completed"
+          (item) => item.status === "completed",
         );
 
         setSources(completedSources);
@@ -99,7 +122,7 @@ export default function QuestionsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">題庫管理</h1>
 
           <p className="mt-2 text-base leading-7 text-slate-600">
-            從 AI 已分析完成的教材，自動建立題庫，並檢視題目、答案與詳解。
+            從 AI 已分析完成的教材，自動建立題庫，並依科目與年級檢視題目、答案與詳解。
           </p>
 
           <div className="mt-8 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -108,7 +131,7 @@ export default function QuestionsPage() {
 
               <select
                 value={selectedSourceId}
-                onChange={(e) => setSelectedSourceId(e.target.value)}
+                onChange={(event) => setSelectedSourceId(event.target.value)}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
               >
                 {sources.length === 0 ? (
@@ -116,7 +139,7 @@ export default function QuestionsPage() {
                 ) : (
                   sources.map((source) => (
                     <option key={source.id} value={source.id}>
-                      {source.title}｜{source.subject}｜{source.unit}
+                      {source.title}｜{source.grade}｜{source.subject}｜{source.unit}
                     </option>
                   ))
                 )}
@@ -129,11 +152,16 @@ export default function QuestionsPage() {
               <input
                 type="number"
                 min={1}
-                max={50}
+                max={30}
                 value={questionCount}
-                onChange={(e) => setQuestionCount(Number(e.target.value))}
+                onChange={(event) =>
+                  setQuestionCount(Number(event.target.value))
+                }
                 className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-2"
               />
+              <p className="mt-1 text-xs text-slate-500">
+                單次最多產生 30 題。
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -163,14 +191,52 @@ export default function QuestionsPage() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-2xl font-semibold">已建立題目</h2>
               <p className="mt-1 text-sm text-slate-500">
-                目前共 {questions.length} 題
+                目前顯示 {filteredQuestions.length} / 全部 {questions.length} 題
               </p>
             </div>
           </div>
+
+          {questions.length > 0 && (
+            <div className="mb-5 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-slate-700">科目</span>
+                <select
+                  value={subjectFilter}
+                  onChange={(event) =>
+                    setSubjectFilter(event.target.value as SubjectFilter)
+                  }
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                >
+                  {SUBJECT_FILTERS.map((subject) => (
+                    <option key={subject} value={subject}>
+                      {subject}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-slate-700">年級</span>
+                <select
+                  value={gradeFilter}
+                  onChange={(event) =>
+                    setGradeFilter(event.target.value as GradeFilter)
+                  }
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                >
+                  {GRADE_FILTERS.map((grade) => (
+                    <option key={grade} value={grade}>
+                      {grade}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
 
           {isLoadingQuestions ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-slate-500">
@@ -180,16 +246,20 @@ export default function QuestionsPage() {
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-slate-500">
               尚未建立題目。
             </div>
+          ) : filteredQuestions.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-slate-500">
+              目前沒有符合篩選條件的題目。
+            </div>
           ) : (
             <div className="space-y-4">
-              {questions.map((question, index) => (
+              {filteredQuestions.map((question, index) => (
                 <article
                   key={question.id}
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
                 >
                   <div className="mb-3 flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
-                      #{questions.length - index}
+                      #{filteredQuestions.length - index}
                     </span>
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
                       {question.subject}
@@ -212,18 +282,19 @@ export default function QuestionsPage() {
                     {question.question_text}
                   </p>
 
-                  {Array.isArray(question.options) && question.options.length > 0 && (
-                    <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                      {question.options.map((option, optionIndex) => (
-                        <li
-                          key={`${question.id}-${optionIndex}`}
-                          className="rounded-lg bg-slate-50 px-3 py-2"
-                        >
-                          {option}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  {Array.isArray(question.options) &&
+                    question.options.length > 0 && (
+                      <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                        {question.options.map((option, optionIndex) => (
+                          <li
+                            key={`${question.id}-${optionIndex}`}
+                            className="rounded-lg bg-slate-50 px-3 py-2"
+                          >
+                            {option}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
 
                   <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
                     <div>

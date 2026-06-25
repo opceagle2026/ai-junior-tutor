@@ -5,14 +5,25 @@ import { useState } from "react";
 import { fetchPracticeQuestions } from "@/lib/practice";
 import type { QuestionItem } from "@/lib/questions";
 import { saveWrongAnswer } from "@/lib/wrongAnswers";
+import { SUPPORTED_SUBJECTS } from "@/types/subjects";
 
 type AnswerMap = Record<string, string>;
 type TutorHintMap = Record<string, string>;
+
+const SUBJECT_FILTERS = ["全部科目", ...SUPPORTED_SUBJECTS] as const;
+const GRADE_FILTERS = ["全部年級", "國一", "國二", "國三"] as const;
+
+type SubjectFilter = (typeof SUBJECT_FILTERS)[number];
+type GradeFilter = (typeof GRADE_FILTERS)[number];
 
 export default function PracticePage() {
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [questionCount, setQuestionCount] = useState(5);
+  const [subjectFilter, setSubjectFilter] =
+    useState<SubjectFilter>("全部科目");
+  const [gradeFilter, setGradeFilter] = useState<GradeFilter>("全部年級");
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmittingAnswers, setIsSubmittingAnswers] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -34,11 +45,16 @@ export default function PracticePage() {
     setLoadingHintQuestionId(null);
 
     try {
-      const data = await fetchPracticeQuestions(questionCount);
+      const data = await fetchPracticeQuestions({
+        count: questionCount,
+        subject: subjectFilter,
+        grade: gradeFilter,
+      });
+
       setQuestions(data);
 
       if (data.length === 0) {
-        setMessage("目前題庫沒有題目，請先到題庫管理產生題目。");
+        setMessage("目前沒有符合科目與年級條件的題目，請先到題庫管理產生題目。");
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "載入測驗題目失敗");
@@ -68,17 +84,21 @@ export default function PracticePage() {
     setMessage("");
 
     try {
-      const wrongQuestions = questions.filter((question) => !isCorrect(question));
+      const wrongQuestions = questions.filter(
+        (question) => !isCorrect(question),
+      );
 
       await Promise.all(
         wrongQuestions.map((question) =>
           saveWrongAnswer({
             questionId: question.id,
             questionText: question.question_text,
+            options: question.options,
             answer: question.answer,
             studentAnswer: answers[question.id] ?? "",
             explanation: question.explanation,
             subject: question.subject,
+            grade: question.grade,
             unit: question.unit,
             knowledgePoint: question.knowledge_point ?? "",
           }),
@@ -163,45 +183,100 @@ export default function PracticePage() {
           <h1 className="text-3xl font-semibold tracking-tight">線上測驗</h1>
 
           <p className="mt-2 text-base leading-7 text-slate-600">
-            從題庫抽題進行練習，作答後系統會立即批改、顯示詳解，並將錯題自動加入錯題庫。
+            依科目與年級從題庫抽題練習，作答後系統會立即批改、顯示詳解，並將錯題自動加入錯題庫。
           </p>
 
-          <div className="mt-8 flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-end">
-            <div>
-              <label className="mb-2 block text-sm font-medium">題數</label>
+          <div className="mt-8 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-4 sm:items-end">
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium">科目</span>
+              <select
+                value={subjectFilter}
+                onChange={(event) =>
+                  setSubjectFilter(event.target.value as SubjectFilter)
+                }
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+              >
+                {SUBJECT_FILTERS.map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+              </select>
+            </label>
 
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium">年級</span>
+              <select
+                value={gradeFilter}
+                onChange={(event) =>
+                  setGradeFilter(event.target.value as GradeFilter)
+                }
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+              >
+                {GRADE_FILTERS.map((grade) => (
+                  <option key={grade} value={grade}>
+                    {grade}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium">題數</span>
               <input
                 type="number"
                 min={1}
                 max={20}
                 value={questionCount}
-                onChange={(e) => setQuestionCount(Number(e.target.value))}
-                className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-2"
+                onChange={(event) =>
+                  setQuestionCount(Number(event.target.value))
+                }
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2"
               />
-            </div>
+            </label>
 
-            <button
-              onClick={handleStartPractice}
-              disabled={isLoading || isSubmittingAnswers}
-              className="rounded-lg bg-blue-600 px-5 py-3 font-medium text-white hover:bg-blue-700 disabled:bg-slate-300"
-            >
-              {isLoading ? "載入中..." : "開始測驗"}
-            </button>
-
-            {questions.length > 0 && !isSubmitted && (
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button
-                onClick={handleSubmitAnswers}
-                disabled={isSubmittingAnswers}
-                className="rounded-lg bg-emerald-600 px-5 py-3 font-medium text-white hover:bg-emerald-700 disabled:bg-slate-300"
+                type="button"
+                onClick={handleStartPractice}
+                disabled={isLoading || isSubmittingAnswers}
+                className="rounded-lg bg-blue-600 px-5 py-3 font-medium text-white hover:bg-blue-700 disabled:bg-slate-300"
               >
-                {isSubmittingAnswers ? "批改中..." : "交卷批改"}
+                {isLoading ? "載入中..." : "開始測驗"}
               </button>
-            )}
+
+              {questions.length > 0 && !isSubmitted && (
+                <button
+                  type="button"
+                  onClick={handleSubmitAnswers}
+                  disabled={isSubmittingAnswers}
+                  className="rounded-lg bg-emerald-600 px-5 py-3 font-medium text-white hover:bg-emerald-700 disabled:bg-slate-300"
+                >
+                  {isSubmittingAnswers ? "批改中..." : "交卷批改"}
+                </button>
+              )}
+            </div>
           </div>
 
           {message && (
             <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
               {message}
+            </div>
+          )}
+
+          {questions.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                本次測驗：{questions.length} 題
+              </span>
+
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                {subjectFilter}
+              </span>
+
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                {gradeFilter}
+              </span>
             </div>
           )}
 
@@ -250,6 +325,10 @@ export default function PracticePage() {
                     </span>
 
                     <span className="rounded-full bg-slate-100 px-3 py-1">
+                      {question.grade}
+                    </span>
+
+                    <span className="rounded-full bg-slate-100 px-3 py-1">
                       {question.subject}
                     </span>
 
@@ -284,8 +363,11 @@ export default function PracticePage() {
                               value={option}
                               checked={studentAnswer === option}
                               disabled={isSubmitted || isSubmittingAnswers}
-                              onChange={(e) =>
-                                handleAnswerChange(question.id, e.target.value)
+                              onChange={(event) =>
+                                handleAnswerChange(
+                                  question.id,
+                                  event.target.value,
+                                )
                               }
                             />
 
@@ -301,11 +383,12 @@ export default function PracticePage() {
                       <label className="mb-2 block text-sm font-medium">
                         你的答案
                       </label>
+
                       <input
                         value={studentAnswer}
                         disabled={isSubmitted || isSubmittingAnswers}
-                        onChange={(e) =>
-                          handleAnswerChange(question.id, e.target.value)
+                        onChange={(event) =>
+                          handleAnswerChange(question.id, event.target.value)
                         }
                         className="w-full rounded-lg border border-slate-300 px-3 py-2"
                       />
@@ -335,6 +418,7 @@ export default function PracticePage() {
                       </p>
 
                       <button
+                        type="button"
                         onClick={() => handleTutorHint(question)}
                         disabled={loadingHintQuestionId !== null}
                         className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300"
