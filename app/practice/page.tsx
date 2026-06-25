@@ -16,6 +16,62 @@ const GRADE_FILTERS = ["全部年級", "國一", "國二", "國三"] as const;
 type SubjectFilter = (typeof SUBJECT_FILTERS)[number];
 type GradeFilter = (typeof GRADE_FILTERS)[number];
 
+function extractChoiceLetter(value: string) {
+  const normalized = value.trim();
+  const match = normalized.match(/^\(?([A-Da-d])\)?[.、\s：:]?/);
+
+  return match?.[1]?.toUpperCase() ?? "";
+}
+
+function removeChoicePrefix(value: string) {
+  return value
+    .trim()
+    .replace(/^\(?[A-Da-d]\)?[.、\s：:]?/, "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeAnswer(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isSameAnswer(studentAnswer: string, correctAnswer: string) {
+  const student = studentAnswer.trim();
+  const correct = correctAnswer.trim();
+
+  if (!student || !correct) {
+    return false;
+  }
+
+  const studentLetter = extractChoiceLetter(student);
+  const correctLetter = extractChoiceLetter(correct);
+
+  if (studentLetter && correctLetter) {
+    return studentLetter === correctLetter;
+  }
+
+  if (studentLetter && /^[A-Da-d]$/.test(correct)) {
+    return studentLetter === correct.toUpperCase();
+  }
+
+  if (correctLetter && /^[A-Da-d]$/.test(student)) {
+    return student.toUpperCase() === correctLetter;
+  }
+
+  const studentWithoutPrefix = removeChoicePrefix(student);
+  const correctWithoutPrefix = removeChoicePrefix(correct);
+
+  if (
+    studentWithoutPrefix &&
+    correctWithoutPrefix &&
+    studentWithoutPrefix === correctWithoutPrefix
+  ) {
+    return true;
+  }
+
+  return normalizeAnswer(student) === normalizeAnswer(correct);
+}
+
 export default function PracticePage() {
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [answers, setAnswers] = useState<AnswerMap>({});
@@ -70,13 +126,9 @@ export default function PracticePage() {
     }));
   }
 
-  function normalizeAnswer(value: string) {
-    return value.trim().toLowerCase();
-  }
-
   function isCorrect(question: QuestionItem) {
     const studentAnswer = answers[question.id] ?? "";
-    return normalizeAnswer(studentAnswer) === normalizeAnswer(question.answer);
+    return isSameAnswer(studentAnswer, question.answer);
   }
 
   async function handleSubmitAnswers() {
