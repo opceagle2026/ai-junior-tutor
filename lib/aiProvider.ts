@@ -4,14 +4,25 @@ import { withGeminiRetry } from "@/lib/geminiRetry";
 
 type AiProvider = "gemini" | "openai";
 
-function getAiProvider(): AiProvider {
-  const provider = process.env.AI_PROVIDER || "gemini";
-
+function normalizeProvider(provider: string | undefined): AiProvider | null {
   if (provider === "gemini" || provider === "openai") {
     return provider;
   }
 
-  throw new Error(`尚未支援的 AI_PROVIDER：${provider}`);
+  return null;
+}
+
+function getPrimaryProvider(): AiProvider {
+  const provider =
+    normalizeProvider(process.env.PRIMARY_AI_PROVIDER) ??
+    normalizeProvider(process.env.AI_PROVIDER) ??
+    "gemini";
+
+  return provider;
+}
+
+function getFallbackProvider(): AiProvider | null {
+  return normalizeProvider(process.env.FALLBACK_AI_PROVIDER);
 }
 
 function getOpenAiClient() {
@@ -34,31 +45,156 @@ function toDataUrl(params: { data: string; mimeType: string }) {
   return `data:${params.mimeType};base64,${params.data}`;
 }
 
-export async function generateAiText(prompt: string): Promise<string> {
-  const provider = getAiProvider();
+function isRetryableAiError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
 
+  const lowerMessage = message.toLowerCase();
+
+  return (
+    message.includes("429") ||
+    message.includes("500") ||
+    message.includes("503") ||
+    lowerMessage.includes("quota") ||
+    lowerMessage.includes("rate limit") ||
+    lowerMessage.includes("overloaded") ||
+    lowerMessage.includes("temporarily unavailable")
+  );
+}
+
+async function generateGeminiText(prompt: string): Promise<string> {
+  const model = genAI.getGenerativeModel({
+    model: GEMINI_MODEL,
+  });
+
+  const result = await withGeminiRetry(() => model.generateContent(prompt));
+
+  return result.response.text();
+}
+
+async function generateGeminiTextFromInlineData(params: {
+  prompt: string;
+  data: string;
+  mimeType: string;
+}): Promise<string> {
+  const model = genAI.getGenerativeModel({
+    model: GEMINI_MODEL,
+  });
+
+  const result = await withGeminiRetry(() =>
+    model.generateContent([
+      {
+        inlineData: {
+          data: params.data,
+          mimeType: params.mimeType,
+        },
+      },
+      params.prompt,
+    ]),
+  );
+
+  return result.response.text();
+}
+
+async function generateOpenAiText(prompt: string): Promise<string> {
+  const client = getOpenAiClient();
+
+  const response = await client.responses.create({
+    model: getOpenAiModel(),
+    input: prompt,
+  });
+
+  return response.output_text;
+}
+
+async function generateOpenAiTextFromInlineData(params: {
+  prompt: string;
+  data: string;
+  mimeType: string;
+}): Promise<string> {
+  const client = getOpenAiClient();
+
+  const response = await client.responses.create({
+    model: getOpenAiModel(),
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: params.prompt,
+          },
+          {
+            type: "input_image",
+            image_url: toDataUrl({
+              data: params.data,
+              mimeType: params.mimeType,
+            }),
+            detail: "auto",
+          },
+        ],
+      },
+    ],
+  });
+
+  return response.output_text;
+}
+
+async function generateTextWithProvider(
+  provider: AiProvider,
+  prompt: string,
+): Promise<string> {
   if (provider === "gemini") {
-    const model = genAI.getGenerativeModel({
-      model: GEMINI_MODEL,
-    });
-
-    const result = await withGeminiRetry(() => model.generateContent(prompt));
-
-    return result.response.text();
+    return generateGeminiText(prompt);
   }
 
   if (provider === "openai") {
-    const client = getOpenAiClient();
-
-    const response = await client.responses.create({
-      model: getOpenAiModel(),
-      input: prompt,
-    });
-
-    return response.output_text;
+    return generateOpenAiText(prompt);
   }
 
-  throw new Error(`尚未支援的 AI_PROVIDER：${provider}`);
+  throw new Error(`尚未支援的 AI Provider：${provider}`);
+}
+
+async function generateTextFromInlineDataWithProvider(
+  provider: AiProvider,
+  params: {
+    prompt: string;
+    data: string;
+    mimeType: string;
+  },
+): Promise<string> {
+  if (provider === "gemini") {
+    return generateGeminiTextFromInlineData(params);
+  }
+
+  if (provider === "openai") {
+    return generateOpenAiTextFromInlineData(params);
+  }
+
+  throw new Error(`尚未支援的 AI Provider：${provider}`);
+}
+
+export async function generateAiText(prompt: string): Promise<string> {
+  const primaryProvider = getPrimaryProvider();
+  const fallbackProvider = getFallbackProvider();
+
+  try {
+    return await generateTextWithProvider(primaryProvider, prompt);
+  } catch (error) {
+    if (
+      fallbackProvider &&
+      fallbackProvider !== primaryProvider &&
+      isRetryableAiError(error)
+    ) {
+      console.warn(
+        `Primary AI provider ${primaryProvider} failed. Falling back to ${fallbackProvider}.`,
+        error,
+      );
+
+      return generateTextWithProvider(fallbackProvider, prompt);
+    }
+
+    throw error;
+  }
 }
 
 export async function generateAiTextFromInlineData(params: {
@@ -66,56 +202,25 @@ export async function generateAiTextFromInlineData(params: {
   data: string;
   mimeType: string;
 }): Promise<string> {
-  const provider = getAiProvider();
+  const primaryProvider = getPrimaryProvider();
+  const fallbackProvider = getFallbackProvider();
 
-  if (provider === "gemini") {
-    const model = genAI.getGenerativeModel({
-      model: GEMINI_MODEL,
-    });
+  try {
+    return await generateTextFromInlineDataWithProvider(primaryProvider, params);
+  } catch (error) {
+    if (
+      fallbackProvider &&
+      fallbackProvider !== primaryProvider &&
+      isRetryableAiError(error)
+    ) {
+      console.warn(
+        `Primary AI provider ${primaryProvider} failed. Falling back to ${fallbackProvider}.`,
+        error,
+      );
 
-    const result = await withGeminiRetry(() =>
-      model.generateContent([
-        {
-          inlineData: {
-            data: params.data,
-            mimeType: params.mimeType,
-          },
-        },
-        params.prompt,
-      ]),
-    );
+      return generateTextFromInlineDataWithProvider(fallbackProvider, params);
+    }
 
-    return result.response.text();
+    throw error;
   }
-
-  if (provider === "openai") {
-    const client = getOpenAiClient();
-
-    const response = await client.responses.create({
-      model: getOpenAiModel(),
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: params.prompt,
-            },
-            {
-              type: "input_image",
-              image_url: toDataUrl({
-                data: params.data,
-                mimeType: params.mimeType,
-              }),
-              detail: "auto",
-            },
-          ],
-        },
-      ],
-    });
-
-    return response.output_text;
-  }
-
-  throw new Error(`尚未支援的 AI_PROVIDER：${provider}`);
 }
