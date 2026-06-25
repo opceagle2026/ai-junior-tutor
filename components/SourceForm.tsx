@@ -18,8 +18,17 @@ type SourceFormProps = {
 const inputClassName =
   "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100";
 
-export function SourceForm({ values, onChange, onSubmit, disabled, isSubmitting }: SourceFormProps) {
-  function updateField<K extends keyof SourceFormValues>(key: K, value: SourceFormValues[K]) {
+export function SourceForm({
+  values,
+  onChange,
+  onSubmit,
+  disabled,
+  isSubmitting,
+}: SourceFormProps) {
+  function updateField<K extends keyof SourceFormValues>(
+    key: K,
+    value: SourceFormValues[K],
+  ) {
     onChange({ ...values, [key]: value });
   }
 
@@ -33,18 +42,19 @@ export function SourceForm({ values, onChange, onSubmit, disabled, isSubmitting 
       <h2 className="text-lg font-semibold text-slate-900">教材資訊</h2>
 
       <p className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800">
-        科目與單元將由 AI 分析教材後自動判斷，無需手動填寫。
+        科目與單元將由 AI 分析教材後自動判斷。新增教材後，系統會自動分析並建立題庫。
       </p>
 
       <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className="text-sm font-medium text-slate-700">標題</span>
+          <span className="text-sm font-medium text-slate-700">
+            標題（可不填）
+          </span>
           <input
             type="text"
-            required
             value={values.title}
             onChange={(event) => updateField("title", event.target.value)}
-            placeholder="請輸入教材標題"
+            placeholder="可自訂教材標題；不填時會使用檔名"
             className={inputClassName}
           />
         </label>
@@ -54,7 +64,9 @@ export function SourceForm({ values, onChange, onSubmit, disabled, isSubmitting 
           <select
             required
             value={values.grade}
-            onChange={(event) => updateField("grade", event.target.value as Grade)}
+            onChange={(event) =>
+              updateField("grade", event.target.value as Grade)
+            }
             className={inputClassName}
           >
             {GRADES.map((grade) => (
@@ -71,7 +83,7 @@ export function SourceForm({ values, onChange, onSubmit, disabled, isSubmitting 
             disabled={disabled}
             className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           >
-            {isSubmitting ? "上傳中…" : "加入教材"}
+            {isSubmitting ? "自動建立中…" : "新增教材並自動建立題庫"}
           </button>
         </div>
       </form>

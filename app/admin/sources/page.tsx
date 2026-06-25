@@ -24,6 +24,12 @@ type SearchMaterial = {
   content: string;
 };
 
+type AutoBuildResult = {
+  ok: boolean;
+  count: number;
+  error?: string;
+};
+
 function getFileType(file: File): string {
   if (file.type) return file.type;
 
@@ -70,6 +76,41 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+async function autoBuildSource(sourceId: string): Promise<AutoBuildResult> {
+  try {
+    const response = await fetch("/api/auto-build-source", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sourceId,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        count: 0,
+        error: result.error || "自動建立題庫失敗",
+      };
+    }
+
+    return {
+      ok: true,
+      count: result.count ?? 0,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      count: 0,
+      error: getErrorMessage(error, "自動建立題庫失敗"),
+    };
+  }
+}
+
 export default function SourcesPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [formValues, setFormValues] =
@@ -78,6 +119,7 @@ export default function SourcesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [buildMessage, setBuildMessage] = useState<string>("");
 
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchGrade, setSearchGrade] =
@@ -158,27 +200,15 @@ export default function SourcesPage() {
       setSources((prev) => [newSource, ...prev]);
       setSearchMessage("已加入教材，正在自動分析並建立題庫...");
 
-      const response = await fetch("/api/auto-build-source", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sourceId: newSource.id,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "自動建立題庫失敗");
-      }
+      const result = await autoBuildSource(newSource.id);
 
       await loadSources();
 
-      setSearchMessage(
-        `完成！教材已分析並自動建立 ${result.count ?? 0} 題。`,
-      );
+      if (!result.ok) {
+        throw new Error(result.error || "自動建立題庫失敗");
+      }
+
+      setSearchMessage(`完成！教材已分析並自動建立 ${result.count} 題。`);
     } catch (error) {
       await loadSources();
 
@@ -195,32 +225,91 @@ export default function SourcesPage() {
 
     setIsSubmitting(true);
     setErrorMessage(null);
+    setBuildMessage("正在上傳教材並自動建立題庫，請稍候...");
+
+    let uploadedCount = 0;
+    let completedCount = 0;
+    let failedCount = 0;
+    let totalQuestionCount = 0;
+    const failedMessages: string[] = [];
 
     try {
       const uploadedSources: SourceItem[] = [];
 
-      for (const selectedFile of files) {
-        const newSource = await uploadSource({
-          title: getTitleForFile(
-            formValues.title,
-            selectedFile,
-            files.length,
-          ),
-          grade: formValues.grade,
-          file: selectedFile,
-          fileType: getFileType(selectedFile),
-        });
+      for (let index = 0; index < files.length; index += 1) {
+        const selectedFile = files[index];
 
-        uploadedSources.push(newSource);
+        setBuildMessage(
+          `正在處理第 ${index + 1} / ${files.length} 份教材：${selectedFile.name}`,
+        );
+
+        try {
+          const newSource = await uploadSource({
+            title: getTitleForFile(
+              formValues.title,
+              selectedFile,
+              files.length,
+            ),
+            grade: formValues.grade,
+            file: selectedFile,
+            fileType: getFileType(selectedFile),
+          });
+
+          uploadedCount += 1;
+          uploadedSources.push(newSource);
+
+          setSources((prev) => [newSource, ...prev]);
+
+          setBuildMessage(
+            `已上傳「${newSource.title}」，正在 AI 分析並建立題庫...`,
+          );
+
+          const result = await autoBuildSource(newSource.id);
+
+          if (result.ok) {
+            completedCount += 1;
+            totalQuestionCount += result.count;
+          } else {
+            failedCount += 1;
+            failedMessages.push(
+              `${newSource.title}：${result.error || "自動建立題庫失敗"}`,
+            );
+          }
+
+          await loadSources();
+        } catch (error) {
+          failedCount += 1;
+          failedMessages.push(
+            `${selectedFile.name}：${getErrorMessage(
+              error,
+              "上傳或自動建立題庫失敗",
+            )}`,
+          );
+        }
       }
 
-      setSources((prev) => [...uploadedSources, ...prev]);
       setFiles([]);
       setFormValues(initialFormValues);
 
-      if (uploadedSources.length === 1) {
+      const summaryMessage = [
+        `完成處理 ${files.length} 份教材。`,
+        `成功上傳 ${uploadedCount} 份。`,
+        `成功建立題庫 ${completedCount} 份。`,
+        `共建立 ${totalQuestionCount} 題。`,
+        failedCount > 0 ? `有 ${failedCount} 份未完成。` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      setBuildMessage(summaryMessage);
+
+      if (failedMessages.length > 0) {
+        setErrorMessage(failedMessages.slice(0, 3).join("\n"));
+      } else {
         setErrorMessage(null);
       }
+
+      await loadSources();
     } catch (error) {
       setErrorMessage(getErrorMessage(error, "批次上傳教材失敗"));
     } finally {
@@ -288,17 +377,23 @@ export default function SourcesPage() {
               教材管理
             </h1>
             <p className="mt-2 text-base leading-7 text-slate-600">
-              可批次上傳教材、拍照輸入教材，或自動搜尋網路教材。科目與單元將由 AI 分析後自動填入。
+              可批次上傳教材、拍照輸入教材，或自動搜尋網路教材。新增後系統會自動分析並建立題庫。
             </p>
           </div>
         </header>
 
         {errorMessage && (
           <div
-            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            className="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
             role="alert"
           >
             {errorMessage}
+          </div>
+        )}
+
+        {buildMessage && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800">
+            {buildMessage}
           </div>
         )}
 
@@ -401,7 +496,7 @@ export default function SourcesPage() {
             isSubmitting={isSubmitting}
           />
           <p className="text-sm text-slate-500">
-            批次上傳時，若未填標題，系統會以各檔案名稱作為教材標題；若有填標題，會以「標題 - 檔名」建立多筆教材。
+            批次上傳時，若未填標題，系統會以各檔案名稱作為教材標題；若有填標題，會以「標題 - 檔名」建立多筆教材。新增後會自動分析並建立題庫。
           </p>
         </div>
 
