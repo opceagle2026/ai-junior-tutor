@@ -74,9 +74,16 @@ export function SourceList({
   const [subjectFilter, setSubjectFilter] =
     useState<SubjectFilter>("全部科目");
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>("全部年級");
+  const [deletedSourceIds, setDeletedSourceIds] = useState<string[]>([]);
+  const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
+  const [deleteMessage, setDeleteMessage] = useState("");
+
+  const visibleSources = useMemo(() => {
+    return sources.filter((source) => !deletedSourceIds.includes(source.id));
+  }, [sources, deletedSourceIds]);
 
   const filteredSources = useMemo(() => {
-    return sources.filter((source) => {
+    return visibleSources.filter((source) => {
       const matchesSubject =
         subjectFilter === "全部科目" || source.subject === subjectFilter;
 
@@ -85,7 +92,51 @@ export function SourceList({
 
       return matchesSubject && matchesGrade;
     });
-  }, [sources, subjectFilter, gradeFilter]);
+  }, [visibleSources, subjectFilter, gradeFilter]);
+
+  async function handleDeleteSource(source: SourceItem) {
+    if (deletingSourceId !== null || isActionDisabled) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `確定要刪除「${source.title}」嗎？\n\n這會一起刪除：\n1. 教材資料\n2. 相關題目\n3. 相關錯題紀錄\n4. Storage 裡的教材檔案\n\n此動作無法復原。`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingSourceId(source.id);
+    setDeleteMessage("");
+
+    try {
+      const response = await fetch("/api/delete-source", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceId: source.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "刪除教材失敗");
+      }
+
+      setDeletedSourceIds((prev) => [...prev, source.id]);
+      setDeleteMessage(
+        `已刪除「${source.title}」，並移除相關題目 ${result.deletedQuestionCount ?? 0} 題。`,
+      );
+    } catch (error) {
+      setDeleteMessage(error instanceof Error ? error.message : "刪除教材失敗");
+    } finally {
+      setDeletingSourceId(null);
+    }
+  }
 
   return (
     <section className="flex flex-col gap-4">
@@ -93,16 +144,22 @@ export function SourceList({
         <div>
           <h2 className="text-lg font-semibold text-slate-900">教材列表</h2>
           <p className="mt-1 text-sm text-slate-500">
-            可依科目與年級篩選教材。
+            可依科目與年級篩選教材，也可刪除教材與相關題目。
           </p>
         </div>
 
         <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-100">
-          顯示 {filteredSources.length} / {sources.length} 筆
+          顯示 {filteredSources.length} / {visibleSources.length} 筆
         </span>
       </div>
 
-      {sources.length > 0 && (
+      {deleteMessage && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+          {deleteMessage}
+        </div>
+      )}
+
+      {visibleSources.length > 0 && (
         <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-slate-700">科目</span>
@@ -144,7 +201,7 @@ export function SourceList({
         <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
           載入教材列表中…
         </div>
-      ) : sources.length === 0 ? (
+      ) : visibleSources.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
           尚無教材，請上傳檔案並填寫標題與年級後加入。
         </div>
@@ -161,6 +218,8 @@ export function SourceList({
 
             const failedReason =
               source.status === "failed" ? getFailedReason(source) : "";
+
+            const isDeleting = deletingSourceId === source.id;
 
             return (
               <li
@@ -242,7 +301,7 @@ export function SourceList({
                   </div>
                 )}
 
-                <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="mt-4 flex flex-wrap gap-3 border-t border-slate-100 pt-4">
                   <button
                     type="button"
                     onClick={() => onAnalyze(source.id)}
@@ -250,6 +309,20 @@ export function SourceList({
                     className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                   >
                     {getAnalyzeButtonLabel(source, isActionDisabled)}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSource(source)}
+                    disabled={
+                      isDeleting ||
+                      deletingSourceId !== null ||
+                      isActionDisabled ||
+                      source.status === "analyzing"
+                    }
+                    className="inline-flex items-center rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                  >
+                    {isDeleting ? "刪除中…" : "刪除教材"}
                   </button>
                 </div>
               </li>

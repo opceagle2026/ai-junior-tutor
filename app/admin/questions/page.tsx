@@ -22,6 +22,10 @@ export default function QuestionsPage() {
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [message, setMessage] = useState("");
 
+  const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(
+    null,
+  );
+
   const [subjectFilter, setSubjectFilter] =
     useState<SubjectFilter>("全部科目");
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>("全部年級");
@@ -108,6 +112,54 @@ export default function QuestionsPage() {
     }
   }
 
+  async function handleDeleteQuestion(question: QuestionItem) {
+    if (deletingQuestionId !== null || isGenerating || isLoadingQuestions) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `確定要刪除這一題嗎？\n\n題目：${question.question_text.slice(
+        0,
+        80,
+      )}${question.question_text.length > 80 ? "..." : ""}\n\n這會一起刪除該題的錯題紀錄，且無法復原。`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingQuestionId(question.id);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/delete-question", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          questionId: question.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "刪除題目失敗");
+      }
+
+      setQuestions((prev) =>
+        prev.filter((item) => item.id !== question.id),
+      );
+
+      setMessage("已刪除題目與相關錯題紀錄。");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "刪除題目失敗");
+    } finally {
+      setDeletingQuestionId(null);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900 sm:py-16">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
@@ -122,7 +174,7 @@ export default function QuestionsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">題庫管理</h1>
 
           <p className="mt-2 text-base leading-7 text-slate-600">
-            從 AI 已分析完成的教材，自動建立題庫，並依科目與年級檢視題目、答案與詳解。
+            從 AI 已分析完成的教材，自動建立題庫，並依科目與年級檢視、刪除題目。
           </p>
 
           <div className="mt-8 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -139,7 +191,8 @@ export default function QuestionsPage() {
                 ) : (
                   sources.map((source) => (
                     <option key={source.id} value={source.id}>
-                      {source.title}｜{source.grade}｜{source.subject}｜{source.unit}
+                      {source.title}｜{source.grade}｜{source.subject}｜
+                      {source.unit}
                     </option>
                   ))
                 )}
@@ -166,6 +219,7 @@ export default function QuestionsPage() {
 
             <div className="flex flex-wrap gap-3">
               <button
+                type="button"
                 onClick={handleGenerate}
                 disabled={!selectedSourceId || isGenerating}
                 className="rounded-lg bg-blue-600 px-5 py-3 font-medium text-white hover:bg-blue-700 disabled:bg-slate-300"
@@ -174,8 +228,9 @@ export default function QuestionsPage() {
               </button>
 
               <button
+                type="button"
                 onClick={loadQuestions}
-                disabled={isLoadingQuestions}
+                disabled={isLoadingQuestions || deletingQuestionId !== null}
                 className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-medium text-slate-700 hover:bg-slate-50 disabled:bg-slate-100"
               >
                 重新整理題庫
@@ -252,73 +307,93 @@ export default function QuestionsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredQuestions.map((question, index) => (
-                <article
-                  key={question.id}
-                  className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-                >
-                  <div className="mb-3 flex flex-wrap gap-2 text-xs">
-                    <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
-                      #{filteredQuestions.length - index}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                      {question.subject}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                      {question.grade}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                      {question.unit}
-                    </span>
-                    <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
-                      {question.question_type}
-                    </span>
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                      {question.difficulty}
-                    </span>
-                  </div>
+              {filteredQuestions.map((question, index) => {
+                const isDeleting = deletingQuestionId === question.id;
 
-                  <p className="whitespace-pre-wrap text-base font-medium leading-7 text-slate-900">
-                    {question.question_text}
-                  </p>
+                return (
+                  <article
+                    key={question.id}
+                    className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+                  >
+                    <div className="mb-3 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                        #{filteredQuestions.length - index}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                        {question.subject}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                        {question.grade}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                        {question.unit}
+                      </span>
+                      <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                        {question.question_type}
+                      </span>
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
+                        {question.difficulty}
+                      </span>
+                    </div>
 
-                  {Array.isArray(question.options) &&
-                    question.options.length > 0 && (
-                      <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                        {question.options.map((option, optionIndex) => (
-                          <li
-                            key={`${question.id}-${optionIndex}`}
-                            className="rounded-lg bg-slate-50 px-3 py-2"
-                          >
-                            {option}
-                          </li>
-                        ))}
-                      </ul>
+                    <p className="whitespace-pre-wrap text-base font-medium leading-7 text-slate-900">
+                      {question.question_text}
+                    </p>
+
+                    {Array.isArray(question.options) &&
+                      question.options.length > 0 && (
+                        <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                          {question.options.map((option, optionIndex) => (
+                            <li
+                              key={`${question.id}-${optionIndex}`}
+                              className="rounded-lg bg-slate-50 px-3 py-2"
+                            >
+                              {option}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                    <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
+                      <div>
+                        <p className="font-semibold text-slate-700">答案</p>
+                        <p className="mt-1 whitespace-pre-wrap text-slate-600">
+                          {question.answer}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-slate-700">詳解</p>
+                        <p className="mt-1 whitespace-pre-wrap text-slate-600">
+                          {question.explanation}
+                        </p>
+                      </div>
+                    </div>
+
+                    {question.knowledge_point && (
+                      <p className="mt-3 text-xs text-slate-500">
+                        知識點：{question.knowledge_point}
+                      </p>
                     )}
 
-                  <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
-                    <div>
-                      <p className="font-semibold text-slate-700">答案</p>
-                      <p className="mt-1 whitespace-pre-wrap text-slate-600">
-                        {question.answer}
-                      </p>
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteQuestion(question)}
+                        disabled={
+                          isDeleting ||
+                          deletingQuestionId !== null ||
+                          isGenerating ||
+                          isLoadingQuestions
+                        }
+                        className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                      >
+                        {isDeleting ? "刪除中…" : "刪除題目"}
+                      </button>
                     </div>
-
-                    <div>
-                      <p className="font-semibold text-slate-700">詳解</p>
-                      <p className="mt-1 whitespace-pre-wrap text-slate-600">
-                        {question.explanation}
-                      </p>
-                    </div>
-                  </div>
-
-                  {question.knowledge_point && (
-                    <p className="mt-3 text-xs text-slate-500">
-                      知識點：{question.knowledge_point}
-                    </p>
-                  )}
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
