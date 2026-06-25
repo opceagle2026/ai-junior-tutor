@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 import { genAI, GEMINI_MODEL } from "@/lib/gemini";
-import { withGeminiRetry } from "@/lib/geminiRetry";
 
 type AiProvider = "gemini" | "openai";
 
@@ -47,7 +46,6 @@ function toDataUrl(params: { data: string; mimeType: string }) {
 
 function isRetryableAiError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-
   const lowerMessage = message.toLowerCase();
 
   return (
@@ -57,7 +55,9 @@ function isRetryableAiError(error: unknown): boolean {
     lowerMessage.includes("quota") ||
     lowerMessage.includes("rate limit") ||
     lowerMessage.includes("overloaded") ||
-    lowerMessage.includes("temporarily unavailable")
+    lowerMessage.includes("temporarily unavailable") ||
+    lowerMessage.includes("deadline") ||
+    lowerMessage.includes("timeout")
   );
 }
 
@@ -66,7 +66,7 @@ async function generateGeminiText(prompt: string): Promise<string> {
     model: GEMINI_MODEL,
   });
 
-  const result = await withGeminiRetry(() => model.generateContent(prompt));
+  const result = await model.generateContent(prompt);
 
   return result.response.text();
 }
@@ -80,17 +80,15 @@ async function generateGeminiTextFromInlineData(params: {
     model: GEMINI_MODEL,
   });
 
-  const result = await withGeminiRetry(() =>
-    model.generateContent([
-      {
-        inlineData: {
-          data: params.data,
-          mimeType: params.mimeType,
-        },
+  const result = await model.generateContent([
+    {
+      inlineData: {
+        data: params.data,
+        mimeType: params.mimeType,
       },
-      params.prompt,
-    ]),
-  );
+    },
+    params.prompt,
+  ]);
 
   return result.response.text();
 }
