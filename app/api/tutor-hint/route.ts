@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { genAI, GEMINI_MODEL } from "@/lib/gemini";
+import { generateAiText } from "@/lib/aiProvider";
 import { getGeminiErrorMessage } from "@/lib/geminiError";
-import { withGeminiRetry } from "@/lib/geminiRetry";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,10 +26,6 @@ export async function POST(request: NextRequest) {
         },
       );
     }
-
-    const model = genAI.getGenerativeModel({
-      model: GEMINI_MODEL,
-    });
 
     const prompt = `
 你是一位溫柔、有耐心、熟悉台灣國中課程的 AI 家教老師。
@@ -88,12 +83,10 @@ ${explanation || "未提供"}
 ...
 `;
 
-    const result = await withGeminiRetry(() =>
-      model.generateContent(prompt),
-    );
+    const hint = await generateAiText(prompt);
 
     return NextResponse.json({
-      hint: result.response.text(),
+      hint,
     });
   } catch (error) {
     console.error("Tutor hint error:", error);

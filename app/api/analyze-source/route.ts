@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { genAI, GEMINI_MODEL } from "@/lib/gemini";
+import {
+  generateAiText,
+  generateAiTextFromInlineData,
+} from "@/lib/aiProvider";
 import { getGeminiErrorMessage } from "@/lib/geminiError";
-import { withGeminiRetry } from "@/lib/geminiRetry";
 import { supabase } from "@/lib/supabaseClient";
 
 type GeminiAnalysis = {
@@ -56,10 +58,6 @@ export async function POST(request: NextRequest) {
       throw new Error(sourceError?.message || "找不到教材資料");
     }
 
-    const model = genAI.getGenerativeModel({
-      model: GEMINI_MODEL,
-    });
-
     const prompt = `
 你是一位熟悉台灣國中課程的家教老師。
 
@@ -89,11 +87,7 @@ ${source.extracted_text || source.summary || ""}
     let text = "";
 
     if (source.file_type === "web") {
-      const result = await withGeminiRetry(() =>
-        model.generateContent(prompt),
-      );
-
-      text = result.response.text();
+      text = await generateAiText(prompt);
     } else {
       const { data: fileData, error: downloadError } = await supabase.storage
         .from("source-files")
@@ -106,19 +100,11 @@ ${source.extracted_text || source.summary || ""}
       const arrayBuffer = await fileData.arrayBuffer();
       const base64 = Buffer.from(arrayBuffer).toString("base64");
 
-      const result = await withGeminiRetry(() =>
-        model.generateContent([
-          {
-            inlineData: {
-              data: base64,
-              mimeType: source.file_type || "application/pdf",
-            },
-          },
-          prompt,
-        ]),
-      );
-
-      text = result.response.text();
+      text = await generateAiTextFromInlineData({
+        data: base64,
+        mimeType: source.file_type || "application/pdf",
+        prompt,
+      });
     }
 
     const analysis = safeJsonParse(text);

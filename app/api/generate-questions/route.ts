@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { genAI, GEMINI_MODEL } from "@/lib/gemini";
+import { generateAiText } from "@/lib/aiProvider";
 import { getGeminiErrorMessage } from "@/lib/geminiError";
-import { withGeminiRetry } from "@/lib/geminiRetry";
 import { supabase } from "@/lib/supabaseClient";
 
 type GeneratedQuestion = {
@@ -55,10 +54,6 @@ export async function POST(request: NextRequest) {
       throw new Error("這份教材尚未完成 AI 分析，請先執行 AI 分析教材。");
     }
 
-    const model = genAI.getGenerativeModel({
-      model: GEMINI_MODEL,
-    });
-
     const prompt = `
 你是一位台灣國中家教老師，請根據以下教材內容產生國中練習題。
 
@@ -101,11 +96,7 @@ ${source.summary || ""}
 ${source.extracted_text || ""}
 `;
 
-    const result = await withGeminiRetry(() =>
-      model.generateContent(prompt),
-    );
-
-    const text = result.response.text();
+    const text = await generateAiText(prompt);
     const questions = safeJsonParse(text);
 
     if (!Array.isArray(questions) || questions.length === 0) {
