@@ -1,6 +1,10 @@
-export const GRADES = ["國一", "國二", "國三"] as const;
+export const GRADES = ["AI 自動判斷", "國一", "國二", "國三"] as const;
 
 export type Grade = (typeof GRADES)[number];
+
+export const JUNIOR_HIGH_GRADES = ["國一", "國二", "國三"] as const;
+
+export type JuniorHighGrade = (typeof JUNIOR_HIGH_GRADES)[number];
 
 export type SourceStatus = "uploaded" | "analyzing" | "completed" | "failed";
 

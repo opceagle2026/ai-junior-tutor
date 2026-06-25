@@ -5,6 +5,7 @@ import type { SourceItem, SourceStatus } from "@/types/sources";
 type SourceListProps = {
   sources: SourceItem[];
   isLoading?: boolean;
+  isActionDisabled?: boolean;
   onAnalyze: (id: string) => void;
 };
 
@@ -40,7 +41,28 @@ function getFailedReason(source: SourceItem): string {
   return "這份教材分析失敗，可能是內容不屬於國中課程、檔案無法辨識，或 AI 服務暫時發生問題。";
 }
 
-export function SourceList({ sources, isLoading, onAnalyze }: SourceListProps) {
+function getAnalyzeButtonLabel(source: SourceItem, isActionDisabled?: boolean) {
+  if (source.status === "analyzing") {
+    return "分析中…";
+  }
+
+  if (isActionDisabled) {
+    return "自動建立中…";
+  }
+
+  if (source.status === "failed") {
+    return "重新分析教材";
+  }
+
+  return "AI 分析教材";
+}
+
+export function SourceList({
+  sources,
+  isLoading,
+  isActionDisabled,
+  onAnalyze,
+}: SourceListProps) {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -62,7 +84,9 @@ export function SourceList({ sources, isLoading, onAnalyze }: SourceListProps) {
         <ul className="flex flex-col gap-3">
           {sources.map((source) => {
             const canAnalyze =
-              source.status === "uploaded" || source.status === "failed";
+              !isActionDisabled &&
+              (source.status === "uploaded" || source.status === "failed");
+
             const failedReason =
               source.status === "failed" ? getFailedReason(source) : "";
 
@@ -146,11 +170,7 @@ export function SourceList({ sources, isLoading, onAnalyze }: SourceListProps) {
                     disabled={!canAnalyze}
                     className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                   >
-                    {source.status === "analyzing"
-                      ? "分析中…"
-                      : source.status === "failed"
-                        ? "重新分析教材"
-                        : "AI 分析教材"}
+                    {getAnalyzeButtonLabel(source, isActionDisabled)}
                   </button>
                 </div>
               </li>

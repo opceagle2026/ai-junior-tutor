@@ -42,7 +42,7 @@ export function SourceForm({
       <h2 className="text-lg font-semibold text-slate-900">教材資訊</h2>
 
       <p className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800">
-        科目與單元將由 AI 分析教材後自動判斷。新增教材後，系統會自動分析並建立題庫。
+        年級、科目與單元將由 AI 分析教材後自動判斷。若你已確定年級，也可以手動指定。
       </p>
 
       <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">

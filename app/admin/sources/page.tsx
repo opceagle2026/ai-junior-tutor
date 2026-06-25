@@ -11,11 +11,12 @@ import {
   updateSourceStatus,
   uploadSource,
 } from "@/lib/sources";
+import { GRADES } from "@/types/sources";
 import type { SourceItem } from "@/types/sources";
 
 const initialFormValues: SourceFormValues = {
   title: "",
-  grade: "國一",
+  grade: "AI 自動判斷",
 };
 
 type SearchMaterial = {
@@ -123,11 +124,13 @@ export default function SourcesPage() {
 
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchGrade, setSearchGrade] =
-    useState<SourceFormValues["grade"]>("國一");
+    useState<SourceFormValues["grade"]>("AI 自動判斷");
   const [isSearching, setIsSearching] = useState(false);
   const [addingUrl, setAddingUrl] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<SearchMaterial[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
+
+  const isBuilding = isSubmitting || addingUrl !== null;
 
   const loadSources = useCallback(async () => {
     setErrorMessage(null);
@@ -197,7 +200,14 @@ export default function SourcesPage() {
         keyword: searchKeyword.trim(),
       });
 
-      setSources((prev) => [newSource, ...prev]);
+      setSources((prev) => [
+        {
+          ...newSource,
+          status: "analyzing",
+        },
+        ...prev,
+      ]);
+
       setSearchMessage("已加入教材，正在自動分析並建立題庫...");
 
       const result = await autoBuildSource(newSource.id);
@@ -234,8 +244,6 @@ export default function SourcesPage() {
     const failedMessages: string[] = [];
 
     try {
-      const uploadedSources: SourceItem[] = [];
-
       for (let index = 0; index < files.length; index += 1) {
         const selectedFile = files[index];
 
@@ -256,9 +264,14 @@ export default function SourcesPage() {
           });
 
           uploadedCount += 1;
-          uploadedSources.push(newSource);
 
-          setSources((prev) => [newSource, ...prev]);
+          setSources((prev) => [
+            {
+              ...newSource,
+              status: "analyzing",
+            },
+            ...prev,
+          ]);
 
           setBuildMessage(
             `已上傳「${newSource.title}」，正在 AI 分析並建立題庫...`,
@@ -318,6 +331,8 @@ export default function SourcesPage() {
   }
 
   async function handleAnalyze(id: string) {
+    if (isBuilding) return;
+
     setErrorMessage(null);
 
     setSources((prev) =>
@@ -377,7 +392,7 @@ export default function SourcesPage() {
               教材管理
             </h1>
             <p className="mt-2 text-base leading-7 text-slate-600">
-              可批次上傳教材、拍照輸入教材，或自動搜尋網路教材。新增後系統會自動分析並建立題庫。
+              可批次上傳教材、拍照輸入教材，或自動搜尋網路教材。新增後系統會自動判斷年級、分析內容並建立題庫。
             </p>
           </div>
         </header>
@@ -403,7 +418,7 @@ export default function SourcesPage() {
             輸入關鍵字，例如「國二 一次函數」、「國一 英文 現在式」，系統會搜尋可作為教材來源的網頁內容。
           </p>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_120px_auto]">
+          <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_150px_auto]">
             <input
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
@@ -418,9 +433,11 @@ export default function SourcesPage() {
               }
               className="rounded-lg border border-slate-300 px-3 py-2"
             >
-              <option value="國一">國一</option>
-              <option value="國二">國二</option>
-              <option value="國三">國三</option>
+              {GRADES.map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade}
+                </option>
+              ))}
             </select>
 
             <button
@@ -496,7 +513,7 @@ export default function SourcesPage() {
             isSubmitting={isSubmitting}
           />
           <p className="text-sm text-slate-500">
-            批次上傳時，若未填標題，系統會以各檔案名稱作為教材標題；若有填標題，會以「標題 - 檔名」建立多筆教材。新增後會自動分析並建立題庫。
+            批次上傳時，若未填標題，系統會以各檔案名稱作為教材標題；若有填標題，會以「標題 - 檔名」建立多筆教材。年級預設由 AI 自動判斷，新增後會自動分析並建立題庫。
           </p>
         </div>
 
@@ -504,6 +521,7 @@ export default function SourcesPage() {
           <SourceList
             sources={sources}
             isLoading={isLoading}
+            isActionDisabled={isBuilding}
             onAnalyze={handleAnalyze}
           />
         </div>

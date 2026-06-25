@@ -8,6 +8,8 @@ import { supabase } from "@/lib/supabaseClient";
 
 type GeminiAnalysis = {
   isJuniorHighRelevant: boolean;
+  suggestedGrade: string;
+  gradeConfidence: string;
   rejectReason: string;
   subject: string;
   unit: string;
@@ -38,6 +40,22 @@ function normalizeBoolean(value: unknown): boolean {
   return value === true || value === "true";
 }
 
+function normalizeGrade(value: unknown, fallbackGrade: string): "國一" | "國二" | "國三" {
+  if (value === "國一" || value === "國二" || value === "國三") {
+    return value;
+  }
+
+  if (
+    fallbackGrade === "國一" ||
+    fallbackGrade === "國二" ||
+    fallbackGrade === "國三"
+  ) {
+    return fallbackGrade;
+  }
+
+  return "國一";
+}
+
 export async function POST(request: NextRequest) {
   let sourceId: string | undefined;
 
@@ -64,23 +82,30 @@ export async function POST(request: NextRequest) {
       throw new Error(sourceError?.message || "找不到教材資料");
     }
 
+    const selectedGrade = source.grade || "AI 自動判斷";
+
     const prompt = `
 你是一位熟悉台灣國中課程綱要的家教老師。
 
 請先判斷這份教材是否適合作為「台灣國中一年級、二年級、三年級」的學習教材。
+如果適合，請進一步判斷最適合的年級。
 
 判斷標準：
 1. 教材內容必須明顯對應台灣國中課程，例如國文、英文、數學、自然、社會、科技、綜合、健康與體育、藝術等。
-2. 如果內容是大學、成人職場、軟體教學、AI工具介紹、商業簡報、研究報告、一般科普但不屬於國中教材，請判斷為不適用。
+2. 如果內容是大學、成人職場、軟體教學、AI工具介紹、商業簡報、研究報告、法律文件、一般科普但不屬於國中教材，請判斷為不適用。
 3. 不要因為使用者選了年級，就硬把教材套成國中課程。
 4. 如果教材只有很少文字，且無法判斷是否為國中教材，也請判斷為不適用。
 5. 只有在「明確適合國中課程」時，isJuniorHighRelevant 才能是 true。
+6. 如果使用者選擇「AI 自動判斷」，請你自行判斷 suggestedGrade。
+7. 如果使用者手動選擇國一、國二或國三，請把它當作參考，但如果內容明顯屬於其他年級，仍請依教材內容判斷。
 
 請只能回傳 JSON，不要加入 markdown、不要加入說明。
 
 格式：
 {
   "isJuniorHighRelevant": true,
+  "suggestedGrade": "國一",
+  "gradeConfidence": "高",
   "rejectReason": "",
   "subject": "",
   "unit": "",
@@ -89,9 +114,21 @@ export async function POST(request: NextRequest) {
   "summary": ""
 }
 
+suggestedGrade 只能填以下三種其中一種：
+國一
+國二
+國三
+
+gradeConfidence 只能填以下三種其中一種：
+高
+中
+低
+
 如果不適合作為國中教材，請回傳：
 {
   "isJuniorHighRelevant": false,
+  "suggestedGrade": "",
+  "gradeConfidence": "低",
   "rejectReason": "簡短說明為什麼不適合國中課程",
   "subject": "不適用",
   "unit": "非國中課程",
@@ -100,8 +137,8 @@ export async function POST(request: NextRequest) {
   "summary": "簡短摘要這份資料大概是什麼"
 }
 
-年級：
-${source.grade}
+使用者選擇的年級：
+${selectedGrade}
 
 檔名或標題：
 ${source.file_name || source.title}
@@ -166,10 +203,16 @@ ${source.extracted_text || source.summary || ""}
       );
     }
 
+    const suggestedGrade = normalizeGrade(
+      analysis.suggestedGrade,
+      selectedGrade,
+    );
+
     const { data: updated, error: updateError } = await supabase
       .from("sources")
       .update({
         status: "completed",
+        grade: suggestedGrade,
         subject: analysis.subject,
         unit: analysis.unit,
         knowledge_points: analysis.knowledgePoints,
