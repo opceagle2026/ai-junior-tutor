@@ -21,6 +21,10 @@ type FetchWrongAnswersForReviewOptions = {
   grade?: string;
 };
 
+function shuffleItems<T>(items: T[]): T[] {
+  return [...items].sort(() => Math.random() - 0.5);
+}
+
 export async function saveWrongAnswer(params: {
   questionId: string;
   questionText: string;
@@ -100,11 +104,13 @@ export async function fetchWrongAnswersForReview(
     query = query.eq("grade", grade);
   }
 
-  const { data, error } = await query.limit(count);
+  const fetchLimit = Math.max(count * 5, 100);
+
+  const { data, error } = await query.limit(fetchLimit);
 
   if (error) throw error;
 
-  return data as WrongAnswerItem[];
+  return shuffleItems(data as WrongAnswerItem[]).slice(0, count);
 }
 
 export async function updateWrongAnswerAfterReview(params: {

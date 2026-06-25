@@ -7,6 +7,10 @@ type FetchPracticeQuestionsOptions = {
   grade?: string;
 };
 
+function shuffleItems<T>(items: T[]): T[] {
+  return [...items].sort(() => Math.random() - 0.5);
+}
+
 export async function fetchPracticeQuestions(
   options: FetchPracticeQuestionsOptions | number = 10,
 ): Promise<QuestionItem[]> {
@@ -27,11 +31,13 @@ export async function fetchPracticeQuestions(
     query = query.eq("grade", grade);
   }
 
-  const { data, error } = await query.limit(count);
+  const fetchLimit = Math.max(count * 5, 100);
+
+  const { data, error } = await query.limit(fetchLimit);
 
   if (error) {
     throw error;
   }
 
-  return data as QuestionItem[];
+  return shuffleItems(data as QuestionItem[]).slice(0, count);
 }
