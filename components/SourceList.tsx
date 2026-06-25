@@ -22,6 +22,24 @@ const STATUS_STYLES: Record<SourceStatus, string> = {
   failed: "bg-red-50 text-red-700 ring-red-100",
 };
 
+function getSourceSummary(source: SourceItem): string {
+  if ("summary" in source && typeof source.summary === "string") {
+    return source.summary.trim();
+  }
+
+  return "";
+}
+
+function getFailedReason(source: SourceItem): string {
+  const summary = getSourceSummary(source);
+
+  if (summary) {
+    return summary;
+  }
+
+  return "這份教材分析失敗，可能是內容不屬於國中課程、檔案無法辨識，或 AI 服務暫時發生問題。";
+}
+
 export function SourceList({ sources, isLoading, onAnalyze }: SourceListProps) {
   return (
     <section className="flex flex-col gap-4">
@@ -43,7 +61,10 @@ export function SourceList({ sources, isLoading, onAnalyze }: SourceListProps) {
       ) : (
         <ul className="flex flex-col gap-3">
           {sources.map((source) => {
-            const canAnalyze = source.status === "uploaded" || source.status === "failed";
+            const canAnalyze =
+              source.status === "uploaded" || source.status === "failed";
+            const failedReason =
+              source.status === "failed" ? getFailedReason(source) : "";
 
             return (
               <li
@@ -52,7 +73,9 @@ export function SourceList({ sources, isLoading, onAnalyze }: SourceListProps) {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-semibold text-slate-900">{source.title}</h3>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      {source.title}
+                    </h3>
                     <p className="text-sm text-slate-600">{source.grade}</p>
                   </div>
 
@@ -66,21 +89,39 @@ export function SourceList({ sources, isLoading, onAnalyze }: SourceListProps) {
                 <dl className="mt-3 grid gap-2 border-t border-slate-100 pt-3 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-xs text-slate-500">檔名</dt>
-                    <dd className="break-all font-medium text-slate-800">{source.fileName}</dd>
+                    <dd className="break-all font-medium text-slate-800">
+                      {source.fileName}
+                    </dd>
                   </div>
+
                   <div>
                     <dt className="text-xs text-slate-500">狀態</dt>
-                    <dd className="font-medium text-slate-800">{STATUS_LABELS[source.status]}</dd>
+                    <dd className="font-medium text-slate-800">
+                      {STATUS_LABELS[source.status]}
+                    </dd>
                   </div>
+
                   <div>
                     <dt className="text-xs text-slate-500">AI 判斷科目</dt>
-                    <dd className="font-medium text-slate-800">{source.subject}</dd>
+                    <dd className="font-medium text-slate-800">
+                      {source.subject}
+                    </dd>
                   </div>
+
                   <div>
                     <dt className="text-xs text-slate-500">AI 判斷單元</dt>
-                    <dd className="font-medium text-slate-800">{source.unit}</dd>
+                    <dd className="font-medium text-slate-800">
+                      {source.unit}
+                    </dd>
                   </div>
                 </dl>
+
+                {source.status === "failed" && (
+                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700">
+                    <p className="font-medium">失敗原因</p>
+                    <p className="mt-1">{failedReason}</p>
+                  </div>
+                )}
 
                 {source.knowledgePoints.length > 0 && (
                   <div className="mt-3 border-t border-slate-100 pt-3">
@@ -105,7 +146,11 @@ export function SourceList({ sources, isLoading, onAnalyze }: SourceListProps) {
                     disabled={!canAnalyze}
                     className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                   >
-                    {source.status === "analyzing" ? "分析中…" : "AI 分析教材"}
+                    {source.status === "analyzing"
+                      ? "分析中…"
+                      : source.status === "failed"
+                        ? "重新分析教材"
+                        : "AI 分析教材"}
                   </button>
                 </div>
               </li>
