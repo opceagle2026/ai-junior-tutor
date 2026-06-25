@@ -44,6 +44,19 @@ function toDataUrl(params: { data: string; mimeType: string }) {
   return `data:${params.mimeType};base64,${params.data}`;
 }
 
+function isImageMimeType(mimeType: string) {
+  return (
+    mimeType === "image/png" ||
+    mimeType === "image/jpeg" ||
+    mimeType === "image/jpg" ||
+    mimeType === "image/webp"
+  );
+}
+
+function isPdfMimeType(mimeType: string) {
+  return mimeType === "application/pdf";
+}
+
 function isRetryableAiError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   const lowerMessage = message.toLowerCase();
@@ -111,30 +124,60 @@ async function generateOpenAiTextFromInlineData(params: {
 }): Promise<string> {
   const client = getOpenAiClient();
 
-  const response = await client.responses.create({
-    model: getOpenAiModel(),
-    input: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text: params.prompt,
-          },
-          {
-            type: "input_image",
-            image_url: toDataUrl({
-              data: params.data,
-              mimeType: params.mimeType,
-            }),
-            detail: "auto",
-          },
-        ],
-      },
-    ],
+  const dataUrl = toDataUrl({
+    data: params.data,
+    mimeType: params.mimeType,
   });
 
-  return response.output_text;
+  if (isImageMimeType(params.mimeType)) {
+    const response = await client.responses.create({
+      model: getOpenAiModel(),
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: params.prompt,
+            },
+            {
+              type: "input_image",
+              image_url: dataUrl,
+              detail: "auto",
+            },
+          ],
+        },
+      ],
+    });
+
+    return response.output_text;
+  }
+
+  if (isPdfMimeType(params.mimeType)) {
+    const response = await client.responses.create({
+      model: getOpenAiModel(),
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: params.prompt,
+            },
+            {
+              type: "input_file",
+              filename: "source.pdf",
+              file_data: dataUrl,
+            },
+          ],
+        },
+      ],
+    });
+
+    return response.output_text;
+  }
+
+  throw new Error(`OpenAI 尚不支援此教材檔案類型：${params.mimeType}`);
 }
 
 async function generateTextWithProvider(
