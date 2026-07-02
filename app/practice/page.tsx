@@ -34,6 +34,36 @@ const SUBJECT_QUESTION_TYPES: Record<
   地球科學: ["選擇題", "填充題", "簡答題"],
 };
 
+const QUESTION_TYPE_STYLES: Record<
+  QuestionType,
+  {
+    icon: string;
+    pill: string;
+    card: string;
+  }
+> = {
+  選擇題: {
+    icon: "✅",
+    pill: "bg-blue-100 text-blue-700",
+    card: "from-blue-500 to-sky-500",
+  },
+  填充題: {
+    icon: "✍️",
+    pill: "bg-violet-100 text-violet-700",
+    card: "from-violet-500 to-purple-500",
+  },
+  計算題: {
+    icon: "🧮",
+    pill: "bg-amber-100 text-amber-700",
+    card: "from-amber-500 to-orange-500",
+  },
+  簡答題: {
+    icon: "💬",
+    pill: "bg-emerald-100 text-emerald-700",
+    card: "from-emerald-500 to-teal-500",
+  },
+};
+
 type SubjectFilter = (typeof SUBJECT_FILTERS)[number];
 type GradeFilter = (typeof GRADE_FILTERS)[number];
 type QuestionType = (typeof ALL_QUESTION_TYPES)[number];
@@ -329,26 +359,74 @@ export default function PracticePage() {
       : 0;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900 sm:py-16">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <Link
-            href="/"
-            className="mb-6 inline-flex w-fit items-center text-sm font-medium text-blue-700 hover:text-blue-800"
-          >
-            ← 返回首頁
-          </Link>
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-sky-50 via-indigo-50 to-pink-50 px-6 py-10 text-slate-900 sm:py-16">
+      <div
+        className="pointer-events-none absolute left-[-8rem] top-[-8rem] h-80 w-80 rounded-full bg-sky-300/30 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute right-[-8rem] top-32 h-96 w-96 rounded-full bg-pink-300/30 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute bottom-[-10rem] left-1/3 h-96 w-96 rounded-full bg-amber-200/40 blur-3xl"
+        aria-hidden="true"
+      />
 
-          <h1 className="text-3xl font-semibold tracking-tight">線上測驗</h1>
+      <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-8">
+        <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-sm backdrop-blur sm:p-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <Link
+              href="/"
+              className="inline-flex w-fit items-center rounded-full border border-blue-100 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm hover:bg-blue-50"
+            >
+              ← 返回首頁
+            </Link>
 
-          <p className="mt-2 text-base leading-7 text-slate-600">
-            依科目、年級與題型從題庫抽題練習，作答後系統會立即批改，並將錯題自動加入錯題庫。
-          </p>
+            <Link
+              href="/wrong-answers"
+              className="inline-flex w-fit items-center rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:from-amber-500 hover:to-orange-600"
+            >
+              查看錯題庫 →
+            </Link>
+          </div>
 
-          <div className="mt-8 grid gap-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+          <div className="mt-8 grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+            <div>
+              <div className="inline-flex w-fit items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700">
+                <span aria-hidden="true">✏️</span>
+                線上測驗
+              </div>
+
+              <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
+                今天先練一小組題目
+              </h1>
+
+              <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600">
+                依科目、年級與題型從題庫抽題練習。作答後系統會立即批改，答錯的題目會自動加入個人錯題庫。
+              </p>
+            </div>
+
+            <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-violet-600 to-pink-500 p-6 text-white shadow-lg">
+              <p className="text-sm font-semibold text-white/80">
+                本次任務
+              </p>
+              <p className="mt-2 text-4xl font-black">
+                {selectedTotalQuestionCount}
+                <span className="ml-1 text-lg font-bold text-white/80">
+                  題
+                </span>
+              </p>
+              <p className="mt-3 text-sm leading-6 text-white/85">
+                不用一次寫很多，先從一組題目開始。答錯沒關係，錯題庫會幫你留下來複習。
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-5 rounded-[1.5rem] border border-white/80 bg-white/70 p-5 shadow-sm">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium">科目</span>
+                <span className="text-sm font-bold text-slate-700">科目</span>
                 <select
                   value={subjectFilter}
                   onChange={(event) =>
@@ -356,7 +434,7 @@ export default function PracticePage() {
                       event.target.value as SubjectFilter,
                     )
                   }
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
                 >
                   {SUBJECT_FILTERS.map((subject) => (
                     <option key={subject} value={subject}>
@@ -367,13 +445,13 @@ export default function PracticePage() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium">年級</span>
+                <span className="text-sm font-bold text-slate-700">年級</span>
                 <select
                   value={gradeFilter}
                   onChange={(event) =>
                     setGradeFilter(event.target.value as GradeFilter)
                   }
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
                 >
                   {GRADE_FILTERS.map((grade) => (
                     <option key={grade} value={grade}>
@@ -384,23 +462,34 @@ export default function PracticePage() {
               </label>
             </div>
 
-            <div className="border-t border-slate-200 pt-4">
-              <p className="text-sm font-medium text-slate-800">各題型題數</p>
-              <p className="mt-1 text-xs text-slate-500">
-                題型會依科目特性顯示；填 0 表示不抽該題型。
-              </p>
+            <div className="rounded-3xl bg-slate-50/80 p-4">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-bold text-slate-800">
+                  各題型題數
+                </p>
+                <p className="text-xs leading-5 text-slate-500">
+                  題型會依科目特性顯示；填 0 表示不抽該題型。
+                </p>
+              </div>
 
-              <div className="mt-3 grid gap-3 sm:grid-cols-4">
+              <div className="mt-4 grid gap-3 sm:grid-cols-4">
                 {ALL_QUESTION_TYPES.map((questionType) => {
                   const allowed = allowedQuestionTypes.includes(questionType);
+                  const style = QUESTION_TYPE_STYLES[questionType];
 
                   if (!allowed) {
                     return null;
                   }
 
                   return (
-                    <label key={questionType} className="flex flex-col gap-2">
-                      <span className="text-sm text-slate-700">
+                    <label
+                      key={questionType}
+                      className="rounded-2xl border border-white bg-white p-4 shadow-sm"
+                    >
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${style.pill}`}
+                      >
+                        <span aria-hidden="true">{style.icon}</span>
                         {questionType}
                       </span>
 
@@ -415,7 +504,7 @@ export default function PracticePage() {
                             Number(event.target.value),
                           )
                         }
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                        className="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-lg font-bold outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
                       />
                     </label>
                   );
@@ -423,9 +512,9 @@ export default function PracticePage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 rounded-3xl bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                <span className="rounded-full bg-blue-100 px-3 py-1 font-bold text-blue-700">
                   預計抽題：{selectedTotalQuestionCount} 題
                 </span>
 
@@ -437,7 +526,9 @@ export default function PracticePage() {
                   return (
                     <span
                       key={questionType}
-                      className="rounded-full bg-slate-100 px-3 py-1 text-slate-700"
+                      className={`rounded-full px-3 py-1 font-medium ${
+                        QUESTION_TYPE_STYLES[questionType].pill
+                      }`}
                     >
                       {questionType} {questionTypeCounts[questionType]}
                     </span>
@@ -453,7 +544,7 @@ export default function PracticePage() {
                   isSubmittingAnswers ||
                   selectedTotalQuestionCount === 0
                 }
-                className="rounded-lg bg-blue-600 px-5 py-3 font-medium text-white hover:bg-blue-700 disabled:bg-slate-300"
+                className="rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-6 py-3 font-bold text-white shadow-sm hover:from-blue-700 hover:to-violet-700 disabled:from-slate-300 disabled:to-slate-300"
               >
                 {isLoading ? "載入中..." : "開始測驗"}
               </button>
@@ -461,22 +552,22 @@ export default function PracticePage() {
           </div>
 
           {message && (
-            <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+            <div className="mt-4 rounded-2xl border border-blue-100 bg-white/90 p-4 text-sm leading-6 text-slate-700 shadow-sm">
               {message}
             </div>
           )}
 
           {questions.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+            <div className="mt-5 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-blue-100 px-3 py-1 font-bold text-blue-700">
                 本次測驗：{questions.length} 題
               </span>
 
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+              <span className="rounded-full bg-white px-3 py-1 font-medium text-slate-700">
                 {subjectFilter}
               </span>
 
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+              <span className="rounded-full bg-white px-3 py-1 font-medium text-slate-700">
                 {gradeFilter}
               </span>
 
@@ -488,7 +579,9 @@ export default function PracticePage() {
                 return (
                   <span
                     key={questionType}
-                    className="rounded-full bg-amber-50 px-3 py-1 text-amber-700"
+                    className={`rounded-full px-3 py-1 font-medium ${
+                      QUESTION_TYPE_STYLES[questionType].pill
+                    }`}
                   >
                     {questionType}{" "}
                     {
@@ -503,180 +596,216 @@ export default function PracticePage() {
           )}
 
           {isSubmitted && questions.length > 0 && (
-            <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-              <p className="text-lg font-semibold text-emerald-800">
-                得分：{score} 分
-              </p>
+            <div className="mt-6 overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
+              <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-4 text-white">
+                <p className="text-sm font-bold text-white/80">測驗完成</p>
+                <p className="mt-1 text-3xl font-black">得分：{score} 分</p>
+              </div>
 
-              <p className="mt-1 text-sm text-emerald-700">
-                答對 {correctCount} 題，共 {questions.length} 題
-              </p>
+              <div className="p-5">
+                <p className="text-sm font-medium text-emerald-700">
+                  答對 {correctCount} 題，共 {questions.length} 題
+                </p>
 
-              <p className="mt-1 text-sm text-emerald-700">
-                已儲存錯題：{wrongSavedCount} 題
-              </p>
+                <p className="mt-1 text-sm font-medium text-emerald-700">
+                  已儲存錯題：{wrongSavedCount} 題
+                </p>
 
-              {wrongSavedCount > 0 && (
-                <Link
-                  href="/wrong-answers"
-                  className="mt-4 inline-flex rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
-                >
-                  查看錯題庫
-                </Link>
-              )}
+                {wrongSavedCount > 0 && (
+                  <Link
+                    href="/wrong-answers"
+                    className="mt-4 inline-flex rounded-full bg-emerald-600 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700"
+                  >
+                    查看錯題庫 →
+                  </Link>
+                )}
+              </div>
             </div>
           )}
         </section>
 
         {questions.length > 0 && (
-          <section className="space-y-4">
+          <section className="space-y-5">
             {questions.map((question, index) => {
               const studentAnswer = answers[question.id] ?? "";
               const correct = isCorrect(question);
               const tutorHint = tutorHints[question.id];
               const isLoadingHint = loadingHintQuestionId === question.id;
+              const questionStyle =
+                QUESTION_TYPE_STYLES[
+                  question.question_type as QuestionType
+                ] ?? QUESTION_TYPE_STYLES.選擇題;
 
               return (
                 <article
                   key={question.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                  className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/90 shadow-sm backdrop-blur"
                 >
-                  <div className="mb-3 flex flex-wrap gap-2 text-xs">
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
-                      第 {index + 1} 題
-                    </span>
+                  <div
+                    className={`h-2 bg-gradient-to-r ${questionStyle.card}`}
+                    aria-hidden="true"
+                  />
 
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      {question.grade}
-                    </span>
+                  <div className="p-6">
+                    <div className="mb-4 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full bg-blue-100 px-3 py-1 font-bold text-blue-700">
+                        第 {index + 1} 題
+                      </span>
 
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      {question.subject}
-                    </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+                        {question.grade}
+                      </span>
 
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      {question.unit}
-                    </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+                        {question.subject}
+                      </span>
 
-                    <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
-                      {question.question_type}
-                    </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+                        {question.unit}
+                      </span>
 
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                      {question.difficulty}
-                    </span>
-                  </div>
+                      <span
+                        className={`rounded-full px-3 py-1 font-bold ${questionStyle.pill}`}
+                      >
+                        {questionStyle.icon} {question.question_type}
+                      </span>
 
-                  <p className="whitespace-pre-wrap text-base font-medium leading-7">
-                    {question.question_text}
-                  </p>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 font-medium text-emerald-700">
+                        {question.difficulty}
+                      </span>
+                    </div>
 
-                  {Array.isArray(question.options) &&
-                    question.options.length > 0 && (
-                      <div className="mt-4 space-y-2">
-                        {question.options.map((option, optionIndex) => (
-                          <label
-                            key={`${question.id}-${optionIndex}`}
-                            className="flex cursor-pointer gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
-                          >
-                            <input
-                              type="radio"
-                              name={question.id}
-                              value={option}
-                              checked={studentAnswer === option}
-                              disabled={isSubmitted || isSubmittingAnswers}
-                              onChange={(event) =>
-                                handleAnswerChange(
-                                  question.id,
-                                  event.target.value,
-                                )
-                              }
-                            />
+                    <p className="whitespace-pre-wrap text-lg font-bold leading-8 text-slate-900">
+                      {question.question_text}
+                    </p>
 
-                            <span>{option}</span>
-                          </label>
-                        ))}
+                    {Array.isArray(question.options) &&
+                      question.options.length > 0 && (
+                        <div className="mt-5 space-y-3">
+                          {question.options.map((option, optionIndex) => (
+                            <label
+                              key={`${question.id}-${optionIndex}`}
+                              className={`flex cursor-pointer gap-3 rounded-2xl border px-4 py-3 transition ${
+                                studentAnswer === option
+                                  ? "border-blue-300 bg-blue-50 ring-4 ring-blue-100"
+                                  : "border-slate-200 bg-slate-50 hover:border-blue-200 hover:bg-blue-50/60"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={question.id}
+                                value={option}
+                                checked={studentAnswer === option}
+                                disabled={isSubmitted || isSubmittingAnswers}
+                                onChange={(event) =>
+                                  handleAnswerChange(
+                                    question.id,
+                                    event.target.value,
+                                  )
+                                }
+                              />
+
+                              <span className="leading-6 text-slate-800">
+                                {option}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                    {(!Array.isArray(question.options) ||
+                      question.options.length === 0) && (
+                      <div className="mt-5">
+                        <label className="mb-2 block text-sm font-bold text-slate-700">
+                          你的答案
+                        </label>
+
+                        <input
+                          value={studentAnswer}
+                          disabled={isSubmitted || isSubmittingAnswers}
+                          onChange={(event) =>
+                            handleAnswerChange(question.id, event.target.value)
+                          }
+                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                          placeholder="把你的答案寫在這裡"
+                        />
                       </div>
                     )}
 
-                  {(!Array.isArray(question.options) ||
-                    question.options.length === 0) && (
-                    <div className="mt-4">
-                      <label className="mb-2 block text-sm font-medium">
-                        你的答案
-                      </label>
+                    {isSubmitted && (
+                      <div
+                        className={`mt-6 rounded-3xl border p-5 ${
+                          correct
+                            ? "border-emerald-200 bg-emerald-50"
+                            : "border-red-200 bg-red-50"
+                        }`}
+                      >
+                        <p
+                          className={`text-lg font-black ${
+                            correct ? "text-emerald-800" : "text-red-800"
+                          }`}
+                        >
+                          {correct ? "🎉 答對了" : "🧩 答錯了，已加入錯題庫"}
+                        </p>
 
-                      <input
-                        value={studentAnswer}
-                        disabled={isSubmitted || isSubmittingAnswers}
-                        onChange={(event) =>
-                          handleAnswerChange(question.id, event.target.value)
-                        }
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                      />
-                    </div>
-                  )}
+                        {!correct && (
+                          <>
+                            <p className="mt-3 text-sm leading-6 text-red-800">
+                              你的答案：{studentAnswer || "未作答"}
+                            </p>
 
-                  {isSubmitted && (
-                    <div
-                      className={`mt-5 rounded-xl border p-4 ${
-                        correct
-                          ? "border-emerald-200 bg-emerald-50"
-                          : "border-red-200 bg-red-50"
-                      }`}
-                    >
-                      <p className="font-semibold">
-                        {correct ? "答對了" : "答錯了，已加入錯題庫"}
-                      </p>
+                            <p className="mt-1 text-sm leading-6 text-red-800">
+                              正確答案：{question.answer}
+                            </p>
 
-                      {!correct && (
-                        <>
-                          <p className="mt-2">
-                            你的答案：{studentAnswer || "未作答"}
-                          </p>
-
-                          <p className="mt-1">正確答案：{question.answer}</p>
-
-                          <p className="mt-3 whitespace-pre-wrap">
-                            詳解：{question.explanation}
-                          </p>
-
-                          <button
-                            type="button"
-                            onClick={() => handleTutorHint(question)}
-                            disabled={loadingHintQuestionId !== null}
-                            className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300"
-                          >
-                            {isLoadingHint ? "AI 思考中..." : "我不會，請提示"}
-                          </button>
-
-                          {tutorHint && (
-                            <div className="mt-4 rounded-xl border border-indigo-200 bg-white p-4">
-                              <p className="mb-2 font-semibold text-indigo-800">
-                                AI 家教提示
+                            <div className="mt-4 rounded-2xl bg-white/80 p-4">
+                              <p className="text-sm font-bold text-slate-800">
+                                詳解
                               </p>
-
-                              <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
-                                {tutorHint}
+                              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                                {question.explanation}
                               </p>
                             </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleTutorHint(question)}
+                              disabled={loadingHintQuestionId !== null}
+                              className="mt-4 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:from-indigo-700 hover:to-violet-700 disabled:from-slate-300 disabled:to-slate-300"
+                            >
+                              {isLoadingHint
+                                ? "AI 思考中..."
+                                : "我不會，請提示"}
+                            </button>
+
+                            {tutorHint && (
+                              <div className="mt-4 rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm">
+                                <p className="mb-2 font-black text-indigo-800">
+                                  🤖 AI 家教提示
+                                </p>
+
+                                <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                                  {tutorHint}
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </article>
               );
             })}
 
             {!isSubmitted && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="rounded-[1.75rem] border border-white/70 bg-white/90 p-6 shadow-sm backdrop-blur">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-lg font-semibold text-slate-900">
+                    <p className="text-xl font-black text-slate-900">
                       完成作答了嗎？
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
                       確認所有題目都已作答後，再送出批改。
                     </p>
                   </div>
@@ -685,7 +814,7 @@ export default function PracticePage() {
                     type="button"
                     onClick={handleSubmitAnswers}
                     disabled={isSubmittingAnswers}
-                    className="rounded-lg bg-emerald-600 px-5 py-3 font-medium text-white hover:bg-emerald-700 disabled:bg-slate-300"
+                    className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-3 font-bold text-white shadow-sm hover:from-emerald-600 hover:to-teal-600 disabled:from-slate-300 disabled:to-slate-300"
                   >
                     {isSubmittingAnswers ? "批改中..." : "交卷批改"}
                   </button>
