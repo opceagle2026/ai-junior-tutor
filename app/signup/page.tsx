@@ -4,7 +4,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import Link from "next/link";
 import { useState } from "react";
 
-const LOCAL_ACCOUNT_DOMAIN = "ai-junior-tutor.local";
+const LOCAL_ACCOUNT_DOMAIN = "ai-junior-tutor.example.com";
 
 function normalizeUsername(value: string) {
   return value.trim().toLowerCase();
@@ -42,7 +42,9 @@ export default function SignupPage() {
       const normalizedUsername = normalizeUsername(username);
 
       if (!isValidUsername(normalizedUsername)) {
-        throw new Error("帳號只能使用英文字母、數字或底線，長度需為 3 到 20 個字。");
+        throw new Error(
+          "帳號只能使用英文字母、數字或底線，長度需為 3 到 20 個字。",
+        );
       }
 
       if (password.length < 6) {
@@ -118,9 +120,7 @@ export default function SignupPage() {
 
           <form onSubmit={handleSignup} className="mt-8 space-y-5">
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-slate-700">
-                帳號
-              </span>
+              <span className="text-sm font-medium text-slate-700">帳號</span>
 
               <input
                 type="text"
@@ -153,9 +153,7 @@ export default function SignupPage() {
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-slate-700">
-                密碼
-              </span>
+              <span className="text-sm font-medium text-slate-700">密碼</span>
 
               <input
                 type="password"

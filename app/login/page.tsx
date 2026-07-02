@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
-const LOCAL_ACCOUNT_DOMAIN = "ai-junior-tutor.local";
+const LOCAL_ACCOUNT_DOMAIN = "ai-junior-tutor.example.com";
 
 function getSafeRedirectPath(value: string | null) {
   if (!value || !value.startsWith("/")) {
