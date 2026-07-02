@@ -7,6 +7,7 @@ import { SUPPORTED_SUBJECTS } from "@/types/subjects";
 
 type WrongAnswerItem = {
   id: string;
+  user_id: string | null;
   question_text: string;
   answer: string;
   student_answer: string;
@@ -57,20 +58,38 @@ export default function WrongAnswersPage() {
       setIsLoading(true);
       setMessage("");
 
-      const { data, error } = await supabase
-        .from("wrong_answers")
-        .select("*")
-        .order("wrong_count", { ascending: false });
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (error) {
-        setMessage(error.message || "載入錯題失敗");
+        if (userError) {
+          throw userError;
+        }
+
+        if (!user) {
+          window.location.href = "/login?redirectedFrom=/wrong-answers";
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("wrong_answers")
+          .select("*")
+          .eq("user_id", user.id)
+          .gt("wrong_count", 0)
+          .order("wrong_count", { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        setItems((data || []) as WrongAnswerItem[]);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "載入錯題失敗");
+      } finally {
+        setIsLoading(false);
       }
-
-      if (!error && data) {
-        setItems(data as WrongAnswerItem[]);
-      }
-
-      setIsLoading(false);
     }
 
     void loadWrongAnswers();
@@ -132,7 +151,7 @@ export default function WrongAnswersPage() {
           <h1 className="text-3xl font-semibold tracking-tight">錯題庫</h1>
 
           <p className="mt-2 text-base leading-7 text-slate-600">
-            系統會自動記錄答錯的題目，並統計錯誤次數。也可以依科目與年級篩選錯題，請 AI 家教一步一步提示。
+            系統會記錄你個人的錯題，並統計錯誤次數。也可以依科目與年級篩選錯題，請 AI 家教一步一步提示。
           </p>
         </section>
 
@@ -188,10 +207,6 @@ export default function WrongAnswersPage() {
                 </select>
               </label>
             </div>
-
-            <p className="mt-3 text-xs leading-6 text-slate-500">
-              若舊錯題沒有年級資料，選擇特定年級時可能不會顯示；下一步補上錯題年級欄位後，新錯題就會正常分類。
-            </p>
           </section>
         )}
 

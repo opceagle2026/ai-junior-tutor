@@ -7,6 +7,7 @@ import { SUPPORTED_SUBJECTS } from "@/types/subjects";
 
 type WrongAnswerItem = {
   id: string;
+  user_id: string | null;
   question_text: string;
   answer: string;
   student_answer: string;
@@ -191,6 +192,20 @@ export default function StatsPage() {
       setMessage("");
 
       try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError) {
+          throw userError;
+        }
+
+        if (!user) {
+          window.location.href = "/login?redirectedFrom=/stats";
+          return;
+        }
+
         const [
           { count: sourceTotal },
           questionCountResult,
@@ -212,6 +227,7 @@ export default function StatsPage() {
           supabase
             .from("wrong_answers")
             .select("*")
+            .eq("user_id", user.id)
             .order("wrong_count", { ascending: false }),
         ]);
 
@@ -302,7 +318,7 @@ export default function StatsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">學習統計</h1>
 
           <p className="mt-2 text-base leading-7 text-slate-600">
-            查看目前教材、題庫、錯題狀況，以及依科目與年級整理出的學習弱點。
+            查看目前教材、題庫總量，以及你個人的錯題狀況與學習弱點。
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -332,24 +348,27 @@ export default function StatsPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm text-slate-500">教材數</p>
             <p className="mt-3 text-4xl font-bold">{sourceCount}</p>
+            <p className="mt-2 text-sm text-slate-500">全站教材總量</p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm text-slate-500">題目數</p>
             <p className="mt-3 text-4xl font-bold">{questionCount}</p>
+            <p className="mt-2 text-sm text-slate-500">全站題庫總量</p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">錯題紀錄數</p>
+            <p className="text-sm text-slate-500">我的錯題紀錄數</p>
             <p className="mt-3 text-4xl font-bold text-red-600">
               {wrongAnswerCount}
             </p>
+            <p className="mt-2 text-sm text-slate-500">目前登入者個人紀錄</p>
           </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">需要複習題數</p>
+            <p className="text-sm text-slate-500">我的待複習題數</p>
             <p className="mt-3 text-4xl font-bold text-amber-600">
               {activeWrongCount}
             </p>
@@ -357,7 +376,7 @@ export default function StatsPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">已熟練題數</p>
+            <p className="text-sm text-slate-500">我的已熟練題數</p>
             <p className="mt-3 text-4xl font-bold text-emerald-600">
               {masteredCount}
             </p>
@@ -365,7 +384,7 @@ export default function StatsPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">錯誤累計次數</p>
+            <p className="text-sm text-slate-500">我的錯誤累計次數</p>
             <p className="mt-3 text-4xl font-bold text-red-600">
               {totalWrongTimes}
             </p>
@@ -375,7 +394,7 @@ export default function StatsPage() {
 
         <div className="grid gap-6 md:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">最弱科目</p>
+            <p className="text-sm text-slate-500">我的最弱科目</p>
             <p className="mt-3 text-2xl font-bold">{topSubject.label}</p>
             <p className="mt-2 text-sm text-slate-500">
               累計錯誤 {topSubject.count} 次
@@ -383,7 +402,7 @@ export default function StatsPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">最弱年級</p>
+            <p className="text-sm text-slate-500">我的最弱年級</p>
             <p className="mt-3 text-2xl font-bold">{topGrade.label}</p>
             <p className="mt-2 text-sm text-slate-500">
               累計錯誤 {topGrade.count} 次
@@ -391,7 +410,7 @@ export default function StatsPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">最弱單元</p>
+            <p className="text-sm text-slate-500">我的最弱單元</p>
             <p className="mt-3 text-2xl font-bold">{topUnit.label}</p>
             <p className="mt-2 text-sm text-slate-500">
               累計錯誤 {topUnit.count} 次
@@ -399,7 +418,7 @@ export default function StatsPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">最弱知識點</p>
+            <p className="text-sm text-slate-500">我的最弱知識點</p>
             <p className="mt-3 text-2xl font-bold">{topKnowledge.label}</p>
             <p className="mt-2 text-sm text-slate-500">
               累計錯誤 {topKnowledge.count} 次
@@ -410,31 +429,31 @@ export default function StatsPage() {
         <div className="grid gap-6 lg:grid-cols-2">
           <DistributionList
             title="各科目題庫分布"
-            description="目前題庫中，各科目的題目數。"
+            description="目前全站題庫中，各科目的題目數。"
             items={questionSubjectStats}
           />
 
           <DistributionList
             title="各年級題庫分布"
-            description="目前題庫中，各年級的題目數。"
+            description="目前全站題庫中，各年級的題目數。"
             items={questionGradeStats}
           />
 
           <DistributionList
-            title="各科目錯題分布"
-            description="依 wrong_count 加總，各科目的錯誤累計次數。"
+            title="我的各科目錯題分布"
+            description="依 wrong_count 加總，你在各科目的錯誤累計次數。"
             items={wrongSubjectStats}
           />
 
           <DistributionList
-            title="各年級錯題分布"
-            description="依 wrong_count 加總，各年級的錯誤累計次數。"
+            title="我的各年級錯題分布"
+            description="依 wrong_count 加總，你在各年級的錯誤累計次數。"
             items={wrongGradeStats}
           />
         </div>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">高錯誤次數題目 Top 5</h2>
+          <h2 className="text-xl font-semibold">我的高錯誤次數題目 Top 5</h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-600">
             優先複習這些題目，通常可以最快改善弱點。

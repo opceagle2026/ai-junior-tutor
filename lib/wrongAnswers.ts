@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 export type WrongAnswerItem = {
   id: string;
+  user_id: string | null;
   question_id: string;
   question_text: string;
   options: string[] | null;
@@ -25,6 +26,19 @@ function shuffleItems<T>(items: T[]): T[] {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
+async function getCurrentUserId() {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) {
+    throw error;
+  }
+
+  return user?.id ?? null;
+}
+
 export async function saveWrongAnswer(params: {
   questionId: string;
   questionText: string;
@@ -37,11 +51,22 @@ export async function saveWrongAnswer(params: {
   unit: string;
   knowledgePoint: string;
 }) {
-  const { data: existing } = await supabase
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    throw new Error("請先登入，才能建立個人錯題庫。");
+  }
+
+  const { data: existing, error: existingError } = await supabase
     .from("wrong_answers")
     .select("*")
+    .eq("user_id", userId)
     .eq("question_id", params.questionId)
     .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
 
   if (existing) {
     const count = (existing.wrong_count ?? 1) + 1;
@@ -54,7 +79,8 @@ export async function saveWrongAnswer(params: {
         options: params.options ?? existing.options ?? null,
         grade: params.grade ?? existing.grade ?? null,
       })
-      .eq("id", existing.id);
+      .eq("id", existing.id)
+      .eq("user_id", userId);
 
     if (error) throw error;
 
@@ -62,6 +88,7 @@ export async function saveWrongAnswer(params: {
   }
 
   const { error } = await supabase.from("wrong_answers").insert({
+    user_id: userId,
     question_id: params.questionId,
     question_text: params.questionText,
     options: params.options ?? null,
@@ -83,6 +110,12 @@ export async function saveWrongAnswer(params: {
 export async function fetchWrongAnswersForReview(
   options: FetchWrongAnswersForReviewOptions | number = 10,
 ): Promise<WrongAnswerItem[]> {
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    throw new Error("請先登入，才能查看個人錯題庫。");
+  }
+
   const normalizedOptions =
     typeof options === "number" ? { count: options } : options;
 
@@ -93,6 +126,7 @@ export async function fetchWrongAnswersForReview(
   let query = supabase
     .from("wrong_answers")
     .select("*")
+    .eq("user_id", userId)
     .gt("wrong_count", 0)
     .order("wrong_count", { ascending: false });
 
@@ -119,6 +153,12 @@ export async function updateWrongAnswerAfterReview(params: {
   studentAnswer: string;
   currentWrongCount: number;
 }): Promise<number> {
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    throw new Error("請先登入，才能更新個人錯題庫。");
+  }
+
   const nextWrongCount = params.isCorrect
     ? Math.max(params.currentWrongCount - 1, 0)
     : params.currentWrongCount + 1;
@@ -129,7 +169,8 @@ export async function updateWrongAnswerAfterReview(params: {
       wrong_count: nextWrongCount,
       student_answer: params.studentAnswer,
     })
-    .eq("id", params.wrongAnswerId);
+    .eq("id", params.wrongAnswerId)
+    .eq("user_id", userId);
 
   if (error) throw error;
 

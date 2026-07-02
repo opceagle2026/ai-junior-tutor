@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import {
   fetchWrongAnswersForReview,
   updateWrongAnswerAfterReview,
@@ -90,10 +91,29 @@ export default function WrongReviewPage() {
     useState<SubjectFilter>("全部科目");
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>("全部年級");
 
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmittingAnswers, setIsSubmittingAnswers] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    async function checkAuth() {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        window.location.href = "/login?redirectedFrom=/wrong-review";
+        return;
+      }
+
+      setIsCheckingAuth(false);
+    }
+
+    void checkAuth();
+  }, []);
 
   function isCorrect(item: WrongAnswerItem) {
     const studentAnswer = answers[item.id] ?? "";
@@ -120,7 +140,15 @@ export default function WrongReviewPage() {
         setMessage("目前沒有符合科目與年級條件、需要複習的錯題。");
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "載入錯題複習失敗");
+      const errorMessage =
+        error instanceof Error ? error.message : "載入錯題複習失敗";
+
+      if (errorMessage.includes("請先登入")) {
+        window.location.href = "/login?redirectedFrom=/wrong-review";
+        return;
+      }
+
+      setMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -169,7 +197,15 @@ export default function WrongReviewPage() {
         `複習完成：答對 ${correctCount} 題，共 ${items.length} 題。答對的錯誤次數已下降，答錯的錯誤次數已增加。`,
       );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "更新錯題複習結果失敗");
+      const errorMessage =
+        error instanceof Error ? error.message : "更新錯題複習結果失敗";
+
+      if (errorMessage.includes("請先登入")) {
+        window.location.href = "/login?redirectedFrom=/wrong-review";
+        return;
+      }
+
+      setMessage(errorMessage);
     } finally {
       setIsSubmittingAnswers(false);
     }
@@ -179,6 +215,18 @@ export default function WrongReviewPage() {
 
   const score =
     items.length > 0 ? Math.round((correctCount / items.length) * 100) : 0;
+
+  if (isCheckingAuth) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900 sm:py-16">
+        <div className="mx-auto w-full max-w-5xl">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            載入中...
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900 sm:py-16">
@@ -194,7 +242,7 @@ export default function WrongReviewPage() {
           <h1 className="text-3xl font-semibold tracking-tight">錯題複習</h1>
 
           <p className="mt-2 text-base leading-7 text-slate-600">
-            依科目與年級從錯題庫抽題重新練習。答對會降低錯誤次數，答錯會增加錯誤次數。
+            依科目與年級從你的個人錯題庫抽題重新練習。答對會降低錯誤次數，答錯會增加錯誤次數。
           </p>
 
           <div className="mt-8 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-5 sm:items-end">
@@ -259,17 +307,6 @@ export default function WrongReviewPage() {
             >
               查看錯題庫
             </Link>
-
-            {items.length > 0 && !isSubmitted && (
-              <button
-                type="button"
-                onClick={handleSubmitAnswers}
-                disabled={isSubmittingAnswers}
-                className="rounded-lg bg-emerald-600 px-5 py-3 font-medium text-white hover:bg-emerald-700 disabled:bg-slate-300 sm:col-span-5"
-              >
-                {isSubmittingAnswers ? "批改中..." : "交卷批改"}
-              </button>
-            )}
           </div>
 
           {message && (
@@ -421,20 +458,48 @@ export default function WrongReviewPage() {
                           : "答錯了，錯誤次數已增加"}
                       </p>
 
-                      <p className="mt-2">
-                        你的答案：{studentAnswer || "未作答"}
-                      </p>
+                      {!result.isCorrect && (
+                        <>
+                          <p className="mt-2">
+                            你的答案：{studentAnswer || "未作答"}
+                          </p>
 
-                      <p className="mt-1">正確答案：{item.answer}</p>
+                          <p className="mt-1">正確答案：{item.answer}</p>
 
-                      <p className="mt-3 whitespace-pre-wrap">
-                        詳解：{item.explanation}
-                      </p>
+                          <p className="mt-3 whitespace-pre-wrap">
+                            詳解：{item.explanation}
+                          </p>
+                        </>
+                      )}
                     </div>
                   )}
                 </article>
               );
             })}
+
+            {!isSubmitted && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-lg font-semibold text-slate-900">
+                      完成複習了嗎？
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      確認所有題目都已作答後，再送出批改。
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSubmitAnswers}
+                    disabled={isSubmittingAnswers}
+                    className="rounded-lg bg-emerald-600 px-5 py-3 font-medium text-white hover:bg-emerald-700 disabled:bg-slate-300"
+                  >
+                    {isSubmittingAnswers ? "批改中..." : "交卷批改"}
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         )}
       </div>
