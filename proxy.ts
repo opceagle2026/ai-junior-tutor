@@ -3,6 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const ADMIN_ROLES = ["admin", "teacher"];
 
+const STUDENT_PROTECTED_PATHS = [
+  "/practice",
+  "/wrong-answers",
+  "/wrong-review",
+  "/stats",
+];
+
 async function getUserRole(
   supabase: ReturnType<typeof createServerClient>,
   userId: string,
@@ -18,6 +25,22 @@ async function getUserRole(
   }
 
   return data?.role ?? null;
+}
+
+function isStudentProtectedPath(pathname: string) {
+  return STUDENT_PROTECTED_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
+function getSafeRedirectPath(request: NextRequest) {
+  const redirectedFrom = request.nextUrl.searchParams.get("redirectedFrom");
+
+  if (!redirectedFrom || !redirectedFrom.startsWith("/")) {
+    return "/";
+  }
+
+  return redirectedFrom;
 }
 
 export async function proxy(request: NextRequest) {
@@ -58,8 +81,9 @@ export async function proxy(request: NextRequest) {
   const isAdminPath = pathname.startsWith("/admin");
   const isLoginPath = pathname === "/login";
   const isNotAuthorizedPath = pathname === "/not-authorized";
+  const isStudentPath = isStudentProtectedPath(pathname);
 
-  if (isAdminPath && !user) {
+  if ((isAdminPath || isStudentPath) && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("redirectedFrom", pathname);
@@ -81,12 +105,17 @@ export async function proxy(request: NextRequest) {
 
   if (isLoginPath && user) {
     const role = await getUserRole(supabase, user.id);
+    const redirectPath = getSafeRedirectPath(request);
     const redirectUrl = request.nextUrl.clone();
 
-    if (role && ADMIN_ROLES.includes(role)) {
-      redirectUrl.pathname = "/admin/sources";
+    if (redirectPath.startsWith("/admin")) {
+      if (role && ADMIN_ROLES.includes(role)) {
+        redirectUrl.pathname = redirectPath;
+      } else {
+        redirectUrl.pathname = "/not-authorized";
+      }
     } else {
-      redirectUrl.pathname = "/not-authorized";
+      redirectUrl.pathname = redirectPath;
     }
 
     redirectUrl.search = "";
@@ -106,5 +135,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/login", "/not-authorized"],
+  matcher: [
+    "/admin/:path*",
+    "/login",
+    "/not-authorized",
+    "/practice/:path*",
+    "/wrong-answers/:path*",
+    "/wrong-review/:path*",
+    "/stats/:path*",
+  ],
 };

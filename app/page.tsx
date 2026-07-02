@@ -8,6 +8,14 @@ type HomeCard = {
   description: string;
 };
 
+type UserProfile = {
+  role: string | null;
+  username: string | null;
+  display_name: string | null;
+};
+
+const ADMIN_ROLES = ["admin", "teacher"];
+
 const studentCards: HomeCard[] = [
   {
     title: "上傳教材",
@@ -54,7 +62,7 @@ const adminCards: HomeCard[] = [
   },
 ];
 
-async function getCurrentUser() {
+async function getCurrentUserAndProfile() {
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -76,7 +84,23 @@ async function getCurrentUser() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return user;
+  if (!user) {
+    return {
+      user: null,
+      profile: null,
+    };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, username, display_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return {
+    user,
+    profile: (profile as UserProfile | null) ?? null,
+  };
 }
 
 function FeatureCard({ card }: { card: HomeCard }) {
@@ -155,10 +179,10 @@ function FeatureCard({ card }: { card: HomeCard }) {
   );
 }
 
-function LoginCard() {
+function AdminLoginCard() {
   return (
     <Link
-      href="/login"
+      href="/login?redirectedFrom=/admin/sources"
       className="group relative block overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
     >
       <div
@@ -198,11 +222,11 @@ function LoginCard() {
           </div>
 
           <h2 className="text-lg font-semibold tracking-tight text-slate-900">
-            登入後台
+            管理者登入
           </h2>
 
           <p className="text-sm leading-6 text-slate-600">
-            登入後即可管理教材、題庫與 AI 分析流程。
+            管理者登入後可管理教材、題庫與 AI 分析流程。
           </p>
         </div>
 
@@ -232,6 +256,49 @@ function LoginCard() {
   );
 }
 
+function NoAdminAccessCard() {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-5 w-5"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 9v4"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+          <path
+            d="M12 16.5h.01"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          />
+          <path
+            d="M10.3 4.5 3.8 16a2 2 0 0 0 1.7 3h13a2 2 0 0 0 1.7-3L13.7 4.5a2 2 0 0 0-3.4 0Z"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+
+      <h2 className="mt-3 text-lg font-semibold tracking-tight text-slate-900">
+        此帳號沒有後台權限
+      </h2>
+
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        目前登入的帳號可以使用學生功能；後台管理需 admin 或 teacher 權限。
+      </p>
+    </div>
+  );
+}
+
 function LogoutButton() {
   return (
     <form action="/api/auth/logout" method="post">
@@ -246,8 +313,12 @@ function LogoutButton() {
 }
 
 export default async function Home() {
-  const user = await getCurrentUser();
+  const { user, profile } = await getCurrentUserAndProfile();
   const isLoggedIn = Boolean(user);
+  const role = profile?.role ?? null;
+  const isAdminUser = Boolean(role && ADMIN_ROLES.includes(role));
+  const displayName =
+    profile?.display_name || profile?.username || user?.email || "使用者";
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
@@ -266,21 +337,30 @@ export default async function Home() {
               {isLoggedIn ? (
                 <>
                   <Link
-                    href="/admin/sources"
+                    href={isAdminUser ? "/admin/sources" : "/practice"}
                     className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
                   >
-                    後台管理
+                    {isAdminUser ? "後台管理" : "我的學習"}
                   </Link>
 
                   <LogoutButton />
                 </>
               ) : (
-                <Link
-                  href="/login"
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                >
-                  登入後台
-                </Link>
+                <>
+                  <Link
+                    href="/login"
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    登入帳號
+                  </Link>
+
+                  <Link
+                    href="/signup"
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                  >
+                    註冊帳號
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -292,6 +372,12 @@ export default async function Home() {
           <p className="text-base leading-7 text-slate-600 sm:text-lg">
             教材 → AI分析 → 題庫 → 出卷 → 批改 → 錯題加強
           </p>
+
+          {isLoggedIn && (
+            <p className="text-sm leading-6 text-slate-500">
+              目前登入：{displayName}
+            </p>
+          )}
         </header>
 
         <section
@@ -320,26 +406,28 @@ export default async function Home() {
             <div className="flex flex-col gap-2">
               <p className="text-sm font-medium text-slate-500">管理者使用</p>
               <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-                {isLoggedIn ? "後台管理" : "後台登入"}
+                {isAdminUser ? "後台管理" : "管理者登入"}
               </h2>
               <p className="text-sm leading-6 text-slate-600">
-                {isLoggedIn
+                {isAdminUser
                   ? "管理教材、題庫與 AI 分析流程。"
-                  : "管理功能需登入後才能使用。"}
+                  : "管理功能需具備 admin 或 teacher 權限。"}
               </p>
             </div>
 
             {isLoggedIn && <LogoutButton />}
           </div>
 
-          {isLoggedIn ? (
+          {isAdminUser ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {adminCards.map((card) => (
                 <FeatureCard key={card.title} card={card} />
               ))}
             </div>
+          ) : isLoggedIn ? (
+            <NoAdminAccessCard />
           ) : (
-            <LoginCard />
+            <AdminLoginCard />
           )}
         </section>
 

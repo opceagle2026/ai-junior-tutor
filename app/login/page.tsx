@@ -5,11 +5,31 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
+const LOCAL_ACCOUNT_DOMAIN = "ai-junior-tutor.local";
+
+function getSafeRedirectPath(value: string | null) {
+  if (!value || !value.startsWith("/")) {
+    return "/";
+  }
+
+  return value;
+}
+
+function normalizeLoginAccount(value: string) {
+  const account = value.trim();
+
+  if (account.includes("@")) {
+    return account;
+  }
+
+  return `${account}@${LOCAL_ACCOUNT_DOMAIN}`;
+}
+
 function LoginForm() {
   const searchParams = useSearchParams();
-  const redirectedFrom = searchParams.get("redirectedFrom") || "/admin/sources";
+  const redirectedFrom = getSafeRedirectPath(searchParams.get("redirectedFrom"));
 
-  const [email, setEmail] = useState("");
+  const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
@@ -27,8 +47,10 @@ function LoginForm() {
     setMessage("");
 
     try {
+      const loginEmail = normalizeLoginAccount(account);
+
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: loginEmail,
         password,
       });
 
@@ -53,24 +75,26 @@ function LoginForm() {
         ← 返回首頁
       </Link>
 
-      <h1 className="text-3xl font-semibold tracking-tight">後台登入</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">帳號登入</h1>
 
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        請使用管理者帳號登入後台，管理教材、題庫與 AI 分析。
+        學生可使用帳號登入；管理者可使用 Email 登入。登入後可使用線上測驗、錯題庫、錯題複習與學習統計。
       </p>
 
       <form onSubmit={handleLogin} className="mt-8 space-y-5">
         <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-slate-700">Email</span>
+          <span className="text-sm font-medium text-slate-700">
+            帳號或 Email
+          </span>
 
           <input
-            type="email"
+            type="text"
             required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            autoComplete="email"
+            value={account}
+            onChange={(event) => setAccount(event.target.value)}
+            autoComplete="username"
             className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            placeholder="admin@example.com"
+            placeholder="例如 student001 或 admin@example.com"
           />
         </label>
 
@@ -99,9 +123,24 @@ function LoginForm() {
           disabled={isLoading}
           className="w-full rounded-lg bg-blue-600 px-5 py-3 font-medium text-white hover:bg-blue-700 disabled:bg-slate-300"
         >
-          {isLoading ? "登入中..." : "登入後台"}
+          {isLoading ? "登入中..." : "登入"}
         </button>
       </form>
+
+      <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+        <p>還沒有帳號？</p>
+
+        <Link
+          href="/signup"
+          className="mt-2 inline-flex font-medium text-blue-700 hover:text-blue-800"
+        >
+          建立學生帳號 →
+        </Link>
+      </div>
+
+      <p className="mt-5 text-xs leading-6 text-slate-500">
+        學生登入後會回到原本要使用的學習功能；管理者登入後可進入後台管理。
+      </p>
     </section>
   );
 }
