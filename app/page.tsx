@@ -22,7 +22,7 @@ const studentCards: HomeCard[] = [
   {
     title: "上傳教材",
     href: "/upload",
-    description: "上傳講義、課本照片或練習題，讓 AI 幫你整理學習內容。",
+    description: "上傳講義、課本照片或練習題，等待 AI 分析與題庫建立後就能練習。",
     icon: "📚",
     colorClass: "from-sky-400 to-blue-500",
   },
@@ -294,7 +294,7 @@ export default async function Home() {
               </h1>
 
               <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-                上傳教材、AI 整理重點、依科目出題練習，答錯的題目會自動進入錯題庫，幫你一步一步補強弱點。
+                上傳教材、等待 AI 整理重點與建立題庫，再依科目出題練習；答錯的題目會自動進入錯題庫，幫你一步一步補強弱點。
               </p>
 
               <div className="mt-6 flex flex-wrap gap-2 text-sm font-medium">
@@ -354,7 +354,7 @@ export default async function Home() {
               選一個功能，開始今天的學習
             </h2>
             <p className="text-sm leading-6 text-slate-600">
-              可以先測驗，也可以先整理教材；答錯沒關係，錯題庫會幫你記住要加強的地方。
+              可以先測驗，也可以先上傳教材等待 AI 分析與題庫建立；答錯沒關係，錯題庫會幫你記住要加強的地方。
             </p>
           </div>
 
