@@ -46,7 +46,36 @@ function getTitleForFile(baseTitle: string, file: File, totalFiles: number) {
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message) return error.message;
+  if (error instanceof Error && error.message) {
+    const message = error.message;
+
+    if (
+      message.includes("row-level security") ||
+      message.includes("permission denied") ||
+      message.includes("not authorized") ||
+      message.includes("Unauthorized")
+    ) {
+      return "目前帳號沒有上傳權限，請先確認已登入，或改用有權限的帳號。";
+    }
+
+    if (
+      message.includes("Storage") ||
+      message.includes("bucket") ||
+      message.includes("object")
+    ) {
+      return "教材檔案儲存失敗，請稍後再試，或換一個較小、較清楚的檔案。";
+    }
+
+    if (
+      message.includes("network") ||
+      message.includes("fetch") ||
+      message.includes("Failed to fetch")
+    ) {
+      return "網路連線不穩，請確認網路後再試一次。";
+    }
+
+    return message;
+  }
 
   if (typeof error === "object" && error !== null && "message" in error) {
     const message = (error as { message: unknown }).message;
@@ -64,12 +93,14 @@ export default function StudentUploadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [hasUploaded, setHasUploaded] = useState(false);
 
   async function handleUpload() {
     if (files.length === 0 || isSubmitting) return;
 
     setIsSubmitting(true);
-    setMessage("正在上傳教材，請稍候...");
+    setHasUploaded(false);
+    setMessage("正在上傳教材，請先不要關閉頁面...");
     setErrorMessage("");
 
     let uploadedCount = 0;
@@ -94,7 +125,10 @@ export default function StudentUploadPage() {
           uploadedCount += 1;
         } catch (error) {
           failedMessages.push(
-            `${selectedFile.name}：${getErrorMessage(error, "上傳失敗")}`,
+            `${selectedFile.name}：${getErrorMessage(
+              error,
+              "上傳失敗，請稍後再試。",
+            )}`,
           );
         }
       }
@@ -103,20 +137,31 @@ export default function StudentUploadPage() {
       setFormValues(initialFormValues);
 
       if (uploadedCount > 0) {
+        setHasUploaded(true);
         setMessage(
-          `已成功上傳 ${uploadedCount} 份教材。老師或管理者會再進行 AI 分析與建立題庫。`,
+          `已成功上傳 ${uploadedCount} 份教材。教材已保存，接下來等 AI 分析與題庫建立完成後，就可以到線上測驗練習。`,
         );
       } else {
         setMessage("");
       }
 
       if (failedMessages.length > 0) {
-        setErrorMessage(failedMessages.slice(0, 3).join("\n"));
+        setErrorMessage(
+          [
+            ...failedMessages.slice(0, 3),
+            failedMessages.length > 3
+              ? `另有 ${failedMessages.length - 3} 份教材未成功上傳。`
+              : "",
+            "建議確認檔案是否清楚、格式是否為 PDF、PNG、JPG、JPEG 或 WEBP。",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        );
       } else {
         setErrorMessage("");
       }
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, "上傳教材失敗"));
+      setErrorMessage(getErrorMessage(error, "上傳教材失敗，請稍後再試。"));
       setMessage("");
     } finally {
       setIsSubmitting(false);
@@ -168,7 +213,7 @@ export default function StudentUploadPage() {
               </h1>
 
               <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600">
-                可以上傳 PDF、課本照片、講義圖片或練習題截圖。上傳後，系統會先保存教材，之後由老師或管理者進行 AI 分析與建立題庫。
+                可以上傳 PDF、課本照片、講義圖片或練習題截圖。上傳後，系統會先保存教材，等 AI 分析與題庫建立完成後，就能進行練習。
               </p>
             </div>
 
@@ -178,7 +223,7 @@ export default function StudentUploadPage() {
               </p>
               <p className="mt-2 text-2xl font-black">拍清楚、傳上來</p>
               <p className="mt-3 text-sm leading-6 text-white/85">
-                講義、課本、題目截圖都可以。檔名不用完美，標題也可以先留空。
+                文字越清楚，後續 AI 分析與建題效果越好。檔名不用完美，標題也可以先留空。
               </p>
             </div>
           </div>
@@ -186,7 +231,18 @@ export default function StudentUploadPage() {
 
         {message && (
           <div className="rounded-2xl border border-blue-100 bg-white/90 px-4 py-3 text-sm leading-6 text-blue-800 shadow-sm backdrop-blur">
-            {message}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p>{message}</p>
+
+              {hasUploaded && (
+                <Link
+                  href="/practice"
+                  className="inline-flex w-fit rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:from-blue-700 hover:to-violet-700"
+                >
+                  去線上測驗 →
+                </Link>
+              )}
+            </div>
           </div>
         )}
 
@@ -255,11 +311,23 @@ export default function StudentUploadPage() {
                     自動判斷」，之後會由系統分析教材內容。
                   </p>
                   <p className="mt-2">
-                    上傳後還不會立刻出題，需要等老師或管理者完成 AI 分析與題庫建立。
+                    上傳完成後，教材需要經過 AI 分析與題庫建立，才會出現在可練習的題目中。
+                  </p>
+                  <p className="mt-2">
+                    如果建題效果不好，建議換一張更清楚、光線更均勻的圖片，或改用 PDF 檔。
                   </p>
                 </div>
               </div>
             </div>
+
+            {isSubmitting && (
+              <div className="rounded-3xl border border-blue-100 bg-blue-50/80 p-5 text-sm leading-7 text-blue-800">
+                <p className="font-black">教材上傳中...</p>
+                <p className="mt-1">
+                  請先不要關閉頁面，也不要重複點擊送出。檔案較多時會需要一點時間。
+                </p>
+              </div>
+            )}
           </div>
         </section>
       </div>
