@@ -235,7 +235,7 @@ export default function PracticePage() {
           <h1 className="text-3xl font-semibold tracking-tight">線上測驗</h1>
 
           <p className="mt-2 text-base leading-7 text-slate-600">
-            依科目與年級從題庫抽題練習，作答後系統會立即批改、顯示詳解，並將錯題自動加入錯題庫。
+            依科目與年級從題庫抽題練習，作答後系統會立即批改，並將錯題自動加入錯題庫。
           </p>
 
           <div className="mt-8 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-4 sm:items-end">
@@ -459,35 +459,39 @@ export default function PracticePage() {
                         {correct ? "答對了" : "答錯了，已加入錯題庫"}
                       </p>
 
-                      <p className="mt-2">
-                        你的答案：{studentAnswer || "未作答"}
-                      </p>
-
-                      <p className="mt-1">正確答案：{question.answer}</p>
-
-                      <p className="mt-3 whitespace-pre-wrap">
-                        詳解：{question.explanation}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => handleTutorHint(question)}
-                        disabled={loadingHintQuestionId !== null}
-                        className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300"
-                      >
-                        {isLoadingHint ? "AI 思考中..." : "我不會，請提示"}
-                      </button>
-
-                      {tutorHint && (
-                        <div className="mt-4 rounded-xl border border-indigo-200 bg-white p-4">
-                          <p className="mb-2 font-semibold text-indigo-800">
-                            AI 家教提示
+                      {!correct && (
+                        <>
+                          <p className="mt-2">
+                            你的答案：{studentAnswer || "未作答"}
                           </p>
 
-                          <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
-                            {tutorHint}
+                          <p className="mt-1">正確答案：{question.answer}</p>
+
+                          <p className="mt-3 whitespace-pre-wrap">
+                            詳解：{question.explanation}
                           </p>
-                        </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleTutorHint(question)}
+                            disabled={loadingHintQuestionId !== null}
+                            className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-slate-300"
+                          >
+                            {isLoadingHint ? "AI 思考中..." : "我不會，請提示"}
+                          </button>
+
+                          {tutorHint && (
+                            <div className="mt-4 rounded-xl border border-indigo-200 bg-white p-4">
+                              <p className="mb-2 font-semibold text-indigo-800">
+                                AI 家教提示
+                              </p>
+
+                              <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                                {tutorHint}
+                              </p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
