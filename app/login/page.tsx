@@ -12,6 +12,10 @@ function getSafeRedirectPath(value: string | null) {
     return "/";
   }
 
+  if (value.startsWith("//")) {
+    return "/";
+  }
+
   return value;
 }
 
@@ -23,6 +27,32 @@ function normalizeLoginAccount(value: string) {
   }
 
   return `${account}@${LOCAL_ACCOUNT_DOMAIN}`;
+}
+
+function getLoginErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "登入失敗，請稍後再試。";
+  }
+
+  const message = error.message;
+
+  if (message.includes("Invalid login credentials")) {
+    return "帳號或密碼不正確，請再確認一次。";
+  }
+
+  if (message.includes("Email not confirmed")) {
+    return "帳號尚未完成確認，請確認 Supabase 是否已關閉 Email 確認。";
+  }
+
+  if (message.includes("Too many requests") || message.includes("rate limit")) {
+    return "嘗試次數過多，請稍等一下再登入。";
+  }
+
+  if (message.includes("User not found")) {
+    return "找不到這個帳號，請先建立學生帳號。";
+  }
+
+  return message || "登入失敗，請稍後再試。";
 }
 
 function LoginForm() {
@@ -43,6 +73,11 @@ function LoginForm() {
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!account.trim() || !password) {
+      setMessage("請輸入帳號與密碼。");
+      return;
+    }
+
     setIsLoading(true);
     setMessage("");
 
@@ -60,7 +95,7 @@ function LoginForm() {
 
       window.location.href = redirectedFrom;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "登入失敗");
+      setMessage(getLoginErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +127,8 @@ function LoginForm() {
           </h1>
 
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            學生可使用帳號登入；管理者可使用 Email 登入。登入後可使用線上測驗、錯題庫、錯題複習與學習統計。
+            學生可使用帳號登入；管理者可使用 Email
+            登入。登入後可使用線上測驗、錯題庫、錯題複習與學習統計。
           </p>
         </div>
 
@@ -139,7 +175,7 @@ function LoginForm() {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !account.trim() || !password}
             className="w-full rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-5 py-3 font-bold text-white shadow-sm hover:from-blue-700 hover:to-violet-700 disabled:from-slate-300 disabled:to-slate-300"
           >
             {isLoading ? "登入中..." : "登入帳號"}
@@ -206,7 +242,8 @@ export default function LoginPage() {
           </h2>
 
           <p className="mt-5 text-sm leading-7 text-white/85 sm:text-base">
-            登入後可以開始測驗、查看個人錯題、重新複習弱點，讓 AI 幫你把學習路線整理得更清楚。
+            登入後可以開始測驗、查看個人錯題、重新複習弱點，讓 AI
+            幫你把學習路線整理得更清楚。
           </p>
 
           <div className="mt-8 grid gap-3 text-sm font-semibold">
