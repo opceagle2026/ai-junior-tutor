@@ -16,8 +16,38 @@ type TutorHintMap = Record<string, string>;
 const SUBJECT_FILTERS = ["全部科目", ...SUPPORTED_SUBJECTS] as const;
 const GRADE_FILTERS = ["全部年級", "國一", "國二", "國三"] as const;
 
+const ALL_QUESTION_TYPES = ["選擇題", "填充題", "計算題", "簡答題"] as const;
+
+const SUBJECT_QUESTION_TYPES: Record<
+  string,
+  (typeof ALL_QUESTION_TYPES)[number][]
+> = {
+  全部科目: ["選擇題", "填充題", "計算題", "簡答題"],
+  國語文: ["選擇題", "填充題", "簡答題"],
+  英語文: ["選擇題", "填充題", "簡答題"],
+  數學: ["選擇題", "填充題", "計算題", "簡答題"],
+  歷史: ["選擇題", "填充題", "簡答題"],
+  地理: ["選擇題", "填充題", "簡答題"],
+  公民與社會: ["選擇題", "填充題", "簡答題"],
+  生物: ["選擇題", "填充題", "簡答題"],
+  理化: ["選擇題", "填充題", "計算題", "簡答題"],
+  地球科學: ["選擇題", "填充題", "簡答題"],
+};
+
 type SubjectFilter = (typeof SUBJECT_FILTERS)[number];
 type GradeFilter = (typeof GRADE_FILTERS)[number];
+type QuestionType = (typeof ALL_QUESTION_TYPES)[number];
+
+function getAllowedQuestionTypes(subject: string) {
+  return SUBJECT_QUESTION_TYPES[subject] ?? SUBJECT_QUESTION_TYPES.全部科目;
+}
+
+function isQuestionTypeAllowed(
+  subject: string,
+  questionType: keyof QuestionTypeCounts,
+) {
+  return getAllowedQuestionTypes(subject).includes(questionType);
+}
 
 function extractChoiceLetter(value: string) {
   const normalized = value.trim();
@@ -124,7 +154,30 @@ export default function PracticePage() {
     string | null
   >(null);
 
+  const allowedQuestionTypes = getAllowedQuestionTypes(subjectFilter);
   const selectedTotalQuestionCount = getTotalQuestionCount(questionTypeCounts);
+
+  function handleSubjectFilterChange(value: SubjectFilter) {
+    setSubjectFilter(value);
+    setQuestions([]);
+    setAnswers({});
+    setTutorHints({});
+    setIsSubmitted(false);
+    setWrongSavedCount(0);
+    setMessage("");
+
+    setQuestionTypeCounts((prev) => {
+      const nextCounts = { ...prev };
+
+      ALL_QUESTION_TYPES.forEach((questionType) => {
+        if (!isQuestionTypeAllowed(value, questionType)) {
+          nextCounts[questionType] = 0;
+        }
+      });
+
+      return nextCounts;
+    });
+  }
 
   function handleQuestionTypeCountChange(
     questionType: keyof QuestionTypeCounts,
@@ -299,7 +352,9 @@ export default function PracticePage() {
                 <select
                   value={subjectFilter}
                   onChange={(event) =>
-                    setSubjectFilter(event.target.value as SubjectFilter)
+                    handleSubjectFilterChange(
+                      event.target.value as SubjectFilter,
+                    )
                   }
                   className="rounded-lg border border-slate-300 bg-white px-3 py-2"
                 >
@@ -332,77 +387,39 @@ export default function PracticePage() {
             <div className="border-t border-slate-200 pt-4">
               <p className="text-sm font-medium text-slate-800">各題型題數</p>
               <p className="mt-1 text-xs text-slate-500">
-                可依練習需求分配不同題型；填 0 表示不抽該題型。
+                題型會依科目特性顯示；填 0 表示不抽該題型。
               </p>
 
               <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm text-slate-700">選擇題</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={20}
-                    value={questionTypeCounts.選擇題}
-                    onChange={(event) =>
-                      handleQuestionTypeCountChange(
-                        "選擇題",
-                        Number(event.target.value),
-                      )
-                    }
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-                  />
-                </label>
+                {ALL_QUESTION_TYPES.map((questionType) => {
+                  const allowed = allowedQuestionTypes.includes(questionType);
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm text-slate-700">填充題</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={20}
-                    value={questionTypeCounts.填充題}
-                    onChange={(event) =>
-                      handleQuestionTypeCountChange(
-                        "填充題",
-                        Number(event.target.value),
-                      )
-                    }
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-                  />
-                </label>
+                  if (!allowed) {
+                    return null;
+                  }
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm text-slate-700">計算題</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={20}
-                    value={questionTypeCounts.計算題}
-                    onChange={(event) =>
-                      handleQuestionTypeCountChange(
-                        "計算題",
-                        Number(event.target.value),
-                      )
-                    }
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-                  />
-                </label>
+                  return (
+                    <label key={questionType} className="flex flex-col gap-2">
+                      <span className="text-sm text-slate-700">
+                        {questionType}
+                      </span>
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm text-slate-700">簡答題</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={20}
-                    value={questionTypeCounts.簡答題}
-                    onChange={(event) =>
-                      handleQuestionTypeCountChange(
-                        "簡答題",
-                        Number(event.target.value),
-                      )
-                    }
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-                  />
-                </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={questionTypeCounts[questionType]}
+                        onChange={(event) =>
+                          handleQuestionTypeCountChange(
+                            questionType,
+                            Number(event.target.value),
+                          )
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                      />
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
@@ -412,21 +429,20 @@ export default function PracticePage() {
                   預計抽題：{selectedTotalQuestionCount} 題
                 </span>
 
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                  選擇題 {questionTypeCounts.選擇題}
-                </span>
+                {ALL_QUESTION_TYPES.map((questionType) => {
+                  if (!allowedQuestionTypes.includes(questionType)) {
+                    return null;
+                  }
 
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                  填充題 {questionTypeCounts.填充題}
-                </span>
-
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                  計算題 {questionTypeCounts.計算題}
-                </span>
-
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                  簡答題 {questionTypeCounts.簡答題}
-                </span>
+                  return (
+                    <span
+                      key={questionType}
+                      className="rounded-full bg-slate-100 px-3 py-1 text-slate-700"
+                    >
+                      {questionType} {questionTypeCounts[questionType]}
+                    </span>
+                  );
+                })}
               </div>
 
               <button
@@ -464,21 +480,25 @@ export default function PracticePage() {
                 {gradeFilter}
               </span>
 
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
-                選擇題 {questions.filter((q) => q.question_type === "選擇題").length}
-              </span>
+              {ALL_QUESTION_TYPES.map((questionType) => {
+                if (!allowedQuestionTypes.includes(questionType)) {
+                  return null;
+                }
 
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
-                填充題 {questions.filter((q) => q.question_type === "填充題").length}
-              </span>
-
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
-                計算題 {questions.filter((q) => q.question_type === "計算題").length}
-              </span>
-
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
-                簡答題 {questions.filter((q) => q.question_type === "簡答題").length}
-              </span>
+                return (
+                  <span
+                    key={questionType}
+                    className="rounded-full bg-amber-50 px-3 py-1 text-amber-700"
+                  >
+                    {questionType}{" "}
+                    {
+                      questions.filter(
+                        (question) => question.question_type === questionType,
+                      ).length
+                    }
+                  </span>
+                );
+              })}
             </div>
           )}
 
