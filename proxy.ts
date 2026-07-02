@@ -36,7 +36,11 @@ function isStudentProtectedPath(pathname: string) {
 function getSafeRedirectPath(request: NextRequest) {
   const redirectedFrom = request.nextUrl.searchParams.get("redirectedFrom");
 
-  if (!redirectedFrom || !redirectedFrom.startsWith("/")) {
+  if (
+    !redirectedFrom ||
+    !redirectedFrom.startsWith("/") ||
+    redirectedFrom.startsWith("//")
+  ) {
     return "/";
   }
 
