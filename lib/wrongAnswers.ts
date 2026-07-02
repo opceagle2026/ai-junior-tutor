@@ -26,6 +26,47 @@ function shuffleItems<T>(items: T[]): T[] {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
+function isMissingSessionError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message.includes("Auth session missing") ||
+    error.message.includes("session missing") ||
+    error.message.includes("missing session")
+  );
+}
+
+function getFriendlySupabaseError(error: unknown, fallback: string) {
+  if (isMissingSessionError(error)) {
+    return "請先重新登入，才能使用個人錯題庫。";
+  }
+
+  if (error instanceof Error && error.message) {
+    if (
+      error.message.includes("row-level security") ||
+      error.message.includes("permission denied") ||
+      error.message.includes("not authorized") ||
+      error.message.includes("Unauthorized")
+    ) {
+      return "目前帳號沒有存取錯題庫的權限，請重新登入後再試。";
+    }
+
+    if (
+      error.message.includes("Failed to fetch") ||
+      error.message.includes("network") ||
+      error.message.includes("fetch")
+    ) {
+      return "網路連線不穩，請確認網路後再試一次。";
+    }
+
+    return error.message;
+  }
+
+  return fallback;
+}
+
 async function getCurrentUserId() {
   const {
     data: { user },
@@ -33,7 +74,11 @@ async function getCurrentUserId() {
   } = await supabase.auth.getUser();
 
   if (error) {
-    throw error;
+    if (isMissingSessionError(error)) {
+      return null;
+    }
+
+    throw new Error(getFriendlySupabaseError(error, "讀取登入狀態失敗。"));
   }
 
   return user?.id ?? null;
@@ -54,7 +99,7 @@ export async function saveWrongAnswer(params: {
   const userId = await getCurrentUserId();
 
   if (!userId) {
-    throw new Error("請先登入，才能建立個人錯題庫。");
+    throw new Error("請先重新登入，才能把錯題保存到個人錯題庫。");
   }
 
   const { data: existing, error: existingError } = await supabase
@@ -65,7 +110,9 @@ export async function saveWrongAnswer(params: {
     .maybeSingle();
 
   if (existingError) {
-    throw existingError;
+    throw new Error(
+      getFriendlySupabaseError(existingError, "讀取錯題紀錄失敗。"),
+    );
   }
 
   if (existing) {
@@ -82,7 +129,9 @@ export async function saveWrongAnswer(params: {
       .eq("id", existing.id)
       .eq("user_id", userId);
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(getFriendlySupabaseError(error, "更新錯題紀錄失敗。"));
+    }
 
     return;
   }
@@ -103,7 +152,7 @@ export async function saveWrongAnswer(params: {
   });
 
   if (error) {
-    throw error;
+    throw new Error(getFriendlySupabaseError(error, "新增錯題紀錄失敗。"));
   }
 }
 
@@ -113,7 +162,7 @@ export async function fetchWrongAnswersForReview(
   const userId = await getCurrentUserId();
 
   if (!userId) {
-    throw new Error("請先登入，才能查看個人錯題庫。");
+    throw new Error("請先重新登入，才能查看個人錯題庫。");
   }
 
   const normalizedOptions =
@@ -142,7 +191,9 @@ export async function fetchWrongAnswersForReview(
 
   const { data, error } = await query.limit(fetchLimit);
 
-  if (error) throw error;
+  if (error) {
+    throw new Error(getFriendlySupabaseError(error, "讀取錯題庫失敗。"));
+  }
 
   return shuffleItems(data as WrongAnswerItem[]).slice(0, count);
 }
@@ -156,7 +207,7 @@ export async function updateWrongAnswerAfterReview(params: {
   const userId = await getCurrentUserId();
 
   if (!userId) {
-    throw new Error("請先登入，才能更新個人錯題庫。");
+    throw new Error("請先重新登入，才能更新個人錯題庫。");
   }
 
   const nextWrongCount = params.isCorrect
@@ -172,7 +223,9 @@ export async function updateWrongAnswerAfterReview(params: {
     .eq("id", params.wrongAnswerId)
     .eq("user_id", userId);
 
-  if (error) throw error;
+  if (error) {
+    throw new Error(getFriendlySupabaseError(error, "更新錯題複習結果失敗。"));
+  }
 
   return nextWrongCount;
 }

@@ -18,10 +18,11 @@ const GRADE_FILTERS = ["全部年級", "國一", "國二", "國三"] as const;
 
 const ALL_QUESTION_TYPES = ["選擇題", "填充題", "計算題", "簡答題"] as const;
 
-const SUBJECT_QUESTION_TYPES: Record<
-  string,
-  (typeof ALL_QUESTION_TYPES)[number][]
-> = {
+type SubjectFilter = (typeof SUBJECT_FILTERS)[number];
+type GradeFilter = (typeof GRADE_FILTERS)[number];
+type QuestionType = (typeof ALL_QUESTION_TYPES)[number];
+
+const SUBJECT_QUESTION_TYPES: Record<string, QuestionType[]> = {
   全部科目: ["選擇題", "填充題", "計算題", "簡答題"],
   國語文: ["選擇題", "填充題", "簡答題"],
   英語文: ["選擇題", "填充題", "簡答題"],
@@ -63,10 +64,6 @@ const QUESTION_TYPE_STYLES: Record<
     card: "from-emerald-500 to-teal-500",
   },
 };
-
-type SubjectFilter = (typeof SUBJECT_FILTERS)[number];
-type GradeFilter = (typeof GRADE_FILTERS)[number];
-type QuestionType = (typeof ALL_QUESTION_TYPES)[number];
 
 function getAllowedQuestionTypes(subject: string) {
   return SUBJECT_QUESTION_TYPES[subject] ?? SUBJECT_QUESTION_TYPES.全部科目;
@@ -111,12 +108,7 @@ function normalizeCount(value: number) {
 }
 
 function getTotalQuestionCount(counts: QuestionTypeCounts) {
-  return (
-    counts.選擇題 +
-    counts.填充題 +
-    counts.計算題 +
-    counts.簡答題
-  );
+  return counts.選擇題 + counts.填充題 + counts.計算題 + counts.簡答題;
 }
 
 function isSameAnswer(studentAnswer: string, correctAnswer: string) {
@@ -154,6 +146,30 @@ function isSameAnswer(studentAnswer: string, correctAnswer: string) {
   }
 
   return normalizeAnswer(student) === normalizeAnswer(correct);
+}
+
+function getWrongAnswerSaveMessage({
+  wrongCount,
+  savedCount,
+  saveFailed,
+}: {
+  wrongCount: number;
+  savedCount: number;
+  saveFailed: boolean;
+}) {
+  if (wrongCount === 0) {
+    return "全部答對，這次沒有新增錯題。";
+  }
+
+  if (!saveFailed) {
+    return `已將 ${savedCount} 題加入錯題庫。`;
+  }
+
+  if (savedCount > 0) {
+    return `測驗已完成，已儲存 ${savedCount} 題錯題；部分錯題保存失敗，請重新登入後再試。`;
+  }
+
+  return "測驗已完成，但錯題保存失敗。請重新登入後再試，之後答錯的題目才會保存到個人錯題庫。";
 }
 
 const initialQuestionTypeCounts: QuestionTypeCounts = {
@@ -243,7 +259,9 @@ export default function PracticePage() {
       setQuestions(data);
 
       if (data.length === 0) {
-        setMessage("目前沒有符合科目、年級與題型條件的題目，請先到題庫管理產生題目。");
+        setMessage(
+          "目前沒有符合科目、年級與題型條件的題目，請先到題庫管理產生題目。",
+        );
       } else if (data.length < selectedTotalQuestionCount) {
         setMessage(
           `題庫符合條件的題目不足，原本選擇 ${selectedTotalQuestionCount} 題，本次實際抽出 ${data.length} 題。`,
@@ -269,15 +287,18 @@ export default function PracticePage() {
   }
 
   async function handleSubmitAnswers() {
+    if (isSubmittingAnswers) return;
+
     setIsSubmittingAnswers(true);
     setMessage("");
 
-    try {
-      const wrongQuestions = questions.filter(
-        (question) => !isCorrect(question),
-      );
+    const wrongQuestions = questions.filter((question) => !isCorrect(question));
 
-      await Promise.all(
+    let savedCount = 0;
+    let saveFailed = false;
+
+    try {
+      const results = await Promise.allSettled(
         wrongQuestions.map((question) =>
           saveWrongAnswer({
             questionId: question.id,
@@ -294,16 +315,30 @@ export default function PracticePage() {
         ),
       );
 
-      setWrongSavedCount(wrongQuestions.length);
-      setIsSubmitted(true);
+      savedCount = results.filter(
+        (result) => result.status === "fulfilled",
+      ).length;
+      saveFailed = results.some((result) => result.status === "rejected");
 
-      if (wrongQuestions.length > 0) {
-        setMessage(`已將 ${wrongQuestions.length} 題加入錯題庫。`);
-      } else {
-        setMessage("全部答對，這次沒有新增錯題。");
-      }
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "儲存錯題失敗");
+      setWrongSavedCount(savedCount);
+      setIsSubmitted(true);
+      setMessage(
+        getWrongAnswerSaveMessage({
+          wrongCount: wrongQuestions.length,
+          savedCount,
+          saveFailed,
+        }),
+      );
+    } catch {
+      setWrongSavedCount(0);
+      setIsSubmitted(true);
+      setMessage(
+        getWrongAnswerSaveMessage({
+          wrongCount: wrongQuestions.length,
+          savedCount: 0,
+          saveFailed: true,
+        }),
+      );
     } finally {
       setIsSubmittingAnswers(false);
     }
@@ -745,7 +780,7 @@ export default function PracticePage() {
                             correct ? "text-emerald-800" : "text-red-800"
                           }`}
                         >
-                          {correct ? "🎉 答對了" : "🧩 答錯了，已加入錯題庫"}
+                          {correct ? "🎉 答對了" : "🧩 答錯了，請看詳解"}
                         </p>
 
                         {!correct && (
