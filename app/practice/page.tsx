@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { fetchPracticeQuestions } from "@/lib/practice";
+import {
+  fetchPracticeQuestions,
+  type QuestionTypeCounts,
+} from "@/lib/practice";
 import type { QuestionItem } from "@/lib/questions";
 import { saveWrongAnswer } from "@/lib/wrongAnswers";
 import { SUPPORTED_SUBJECTS } from "@/types/subjects";
@@ -33,6 +36,27 @@ function removeChoicePrefix(value: string) {
 
 function normalizeAnswer(value: string) {
   return value.trim().toLowerCase();
+}
+
+function normalizeCount(value: number) {
+  if (Number.isNaN(value) || value < 0) {
+    return 0;
+  }
+
+  if (value > 20) {
+    return 20;
+  }
+
+  return Math.floor(value);
+}
+
+function getTotalQuestionCount(counts: QuestionTypeCounts) {
+  return (
+    counts.選擇題 +
+    counts.填充題 +
+    counts.計算題 +
+    counts.簡答題
+  );
 }
 
 function isSameAnswer(studentAnswer: string, correctAnswer: string) {
@@ -72,10 +96,19 @@ function isSameAnswer(studentAnswer: string, correctAnswer: string) {
   return normalizeAnswer(student) === normalizeAnswer(correct);
 }
 
+const initialQuestionTypeCounts: QuestionTypeCounts = {
+  選擇題: 5,
+  填充題: 0,
+  計算題: 0,
+  簡答題: 0,
+};
+
 export default function PracticePage() {
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [answers, setAnswers] = useState<AnswerMap>({});
-  const [questionCount, setQuestionCount] = useState(5);
+  const [questionTypeCounts, setQuestionTypeCounts] =
+    useState<QuestionTypeCounts>(initialQuestionTypeCounts);
+
   const [subjectFilter, setSubjectFilter] =
     useState<SubjectFilter>("全部科目");
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>("全部年級");
@@ -91,7 +124,24 @@ export default function PracticePage() {
     string | null
   >(null);
 
+  const selectedTotalQuestionCount = getTotalQuestionCount(questionTypeCounts);
+
+  function handleQuestionTypeCountChange(
+    questionType: keyof QuestionTypeCounts,
+    value: number,
+  ) {
+    setQuestionTypeCounts((prev) => ({
+      ...prev,
+      [questionType]: normalizeCount(value),
+    }));
+  }
+
   async function handleStartPractice() {
+    if (selectedTotalQuestionCount === 0) {
+      setMessage("請至少選擇 1 題。");
+      return;
+    }
+
     setIsLoading(true);
     setMessage("");
     setIsSubmitted(false);
@@ -102,15 +152,19 @@ export default function PracticePage() {
 
     try {
       const data = await fetchPracticeQuestions({
-        count: questionCount,
         subject: subjectFilter,
         grade: gradeFilter,
+        questionTypeCounts,
       });
 
       setQuestions(data);
 
       if (data.length === 0) {
-        setMessage("目前沒有符合科目與年級條件的題目，請先到題庫管理產生題目。");
+        setMessage("目前沒有符合科目、年級與題型條件的題目，請先到題庫管理產生題目。");
+      } else if (data.length < selectedTotalQuestionCount) {
+        setMessage(
+          `題庫符合條件的題目不足，原本選擇 ${selectedTotalQuestionCount} 題，本次實際抽出 ${data.length} 題。`,
+        );
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "載入測驗題目失敗");
@@ -235,78 +289,158 @@ export default function PracticePage() {
           <h1 className="text-3xl font-semibold tracking-tight">線上測驗</h1>
 
           <p className="mt-2 text-base leading-7 text-slate-600">
-            依科目與年級從題庫抽題練習，作答後系統會立即批改，並將錯題自動加入錯題庫。
+            依科目、年級與題型從題庫抽題練習，作答後系統會立即批改，並將錯題自動加入錯題庫。
           </p>
 
-          <div className="mt-8 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-4 sm:items-end">
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium">科目</span>
-              <select
-                value={subjectFilter}
-                onChange={(event) =>
-                  setSubjectFilter(event.target.value as SubjectFilter)
-                }
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-              >
-                {SUBJECT_FILTERS.map((subject) => (
-                  <option key={subject} value={subject}>
-                    {subject}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="mt-8 grid gap-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium">科目</span>
+                <select
+                  value={subjectFilter}
+                  onChange={(event) =>
+                    setSubjectFilter(event.target.value as SubjectFilter)
+                  }
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                >
+                  {SUBJECT_FILTERS.map((subject) => (
+                    <option key={subject} value={subject}>
+                      {subject}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium">年級</span>
-              <select
-                value={gradeFilter}
-                onChange={(event) =>
-                  setGradeFilter(event.target.value as GradeFilter)
-                }
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-              >
-                {GRADE_FILTERS.map((grade) => (
-                  <option key={grade} value={grade}>
-                    {grade}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium">年級</span>
+                <select
+                  value={gradeFilter}
+                  onChange={(event) =>
+                    setGradeFilter(event.target.value as GradeFilter)
+                  }
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                >
+                  {GRADE_FILTERS.map((grade) => (
+                    <option key={grade} value={grade}>
+                      {grade}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium">題數</span>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={questionCount}
-                onChange={(event) =>
-                  setQuestionCount(Number(event.target.value))
-                }
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2"
-              />
-            </label>
+            <div className="border-t border-slate-200 pt-4">
+              <p className="text-sm font-medium text-slate-800">各題型題數</p>
+              <p className="mt-1 text-xs text-slate-500">
+                可依練習需求分配不同題型；填 0 表示不抽該題型。
+              </p>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm text-slate-700">選擇題</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={20}
+                    value={questionTypeCounts.選擇題}
+                    onChange={(event) =>
+                      handleQuestionTypeCountChange(
+                        "選擇題",
+                        Number(event.target.value),
+                      )
+                    }
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm text-slate-700">填充題</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={20}
+                    value={questionTypeCounts.填充題}
+                    onChange={(event) =>
+                      handleQuestionTypeCountChange(
+                        "填充題",
+                        Number(event.target.value),
+                      )
+                    }
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm text-slate-700">計算題</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={20}
+                    value={questionTypeCounts.計算題}
+                    onChange={(event) =>
+                      handleQuestionTypeCountChange(
+                        "計算題",
+                        Number(event.target.value),
+                      )
+                    }
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm text-slate-700">簡答題</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={20}
+                    value={questionTypeCounts.簡答題}
+                    onChange={(event) =>
+                      handleQuestionTypeCountChange(
+                        "簡答題",
+                        Number(event.target.value),
+                      )
+                    }
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                  預計抽題：{selectedTotalQuestionCount} 題
+                </span>
+
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                  選擇題 {questionTypeCounts.選擇題}
+                </span>
+
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                  填充題 {questionTypeCounts.填充題}
+                </span>
+
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                  計算題 {questionTypeCounts.計算題}
+                </span>
+
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                  簡答題 {questionTypeCounts.簡答題}
+                </span>
+              </div>
+
               <button
                 type="button"
                 onClick={handleStartPractice}
-                disabled={isLoading || isSubmittingAnswers}
+                disabled={
+                  isLoading ||
+                  isSubmittingAnswers ||
+                  selectedTotalQuestionCount === 0
+                }
                 className="rounded-lg bg-blue-600 px-5 py-3 font-medium text-white hover:bg-blue-700 disabled:bg-slate-300"
               >
                 {isLoading ? "載入中..." : "開始測驗"}
               </button>
-
-              {questions.length > 0 && !isSubmitted && (
-                <button
-                  type="button"
-                  onClick={handleSubmitAnswers}
-                  disabled={isSubmittingAnswers}
-                  className="rounded-lg bg-emerald-600 px-5 py-3 font-medium text-white hover:bg-emerald-700 disabled:bg-slate-300"
-                >
-                  {isSubmittingAnswers ? "批改中..." : "交卷批改"}
-                </button>
-              )}
             </div>
           </div>
 
@@ -328,6 +462,22 @@ export default function PracticePage() {
 
               <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
                 {gradeFilter}
+              </span>
+
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                選擇題 {questions.filter((q) => q.question_type === "選擇題").length}
+              </span>
+
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                填充題 {questions.filter((q) => q.question_type === "填充題").length}
+              </span>
+
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                計算題 {questions.filter((q) => q.question_type === "計算題").length}
+              </span>
+
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                簡答題 {questions.filter((q) => q.question_type === "簡答題").length}
               </span>
             </div>
           )}
@@ -498,6 +648,30 @@ export default function PracticePage() {
                 </article>
               );
             })}
+
+            {!isSubmitted && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-lg font-semibold text-slate-900">
+                      完成作答了嗎？
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      確認所有題目都已作答後，再送出批改。
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSubmitAnswers}
+                    disabled={isSubmittingAnswers}
+                    className="rounded-lg bg-emerald-600 px-5 py-3 font-medium text-white hover:bg-emerald-700 disabled:bg-slate-300"
+                  >
+                    {isSubmittingAnswers ? "批改中..." : "交卷批改"}
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         )}
       </div>
