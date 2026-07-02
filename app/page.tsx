@@ -6,6 +6,8 @@ type HomeCard = {
   title: string;
   href: string;
   description: string;
+  icon: string;
+  colorClass: string;
 };
 
 type UserProfile = {
@@ -20,27 +22,37 @@ const studentCards: HomeCard[] = [
   {
     title: "上傳教材",
     href: "/upload",
-    description: "上傳 PDF、講義、課本照片或練習題截圖。",
+    description: "上傳講義、課本照片或練習題，讓 AI 幫你整理學習內容。",
+    icon: "📚",
+    colorClass: "from-sky-400 to-blue-500",
   },
   {
     title: "線上測驗",
     href: "/practice",
-    description: "依科目與年級抽題練習，系統會自動批改。",
+    description: "依科目、年級與題型開始練習，作答後立即批改。",
+    icon: "✏️",
+    colorClass: "from-violet-400 to-purple-500",
   },
   {
     title: "錯題庫",
     href: "/wrong-answers",
-    description: "查看答錯的題目、正確答案與詳解。",
+    description: "把答錯的題目收起來，重新看懂觀念與詳解。",
+    icon: "🧩",
+    colorClass: "from-amber-400 to-orange-500",
   },
   {
     title: "錯題複習",
     href: "/wrong-review",
-    description: "重新練習錯題，答對後逐步降低錯題次數。",
+    description: "針對錯題再練一次，答對後逐步降低錯題次數。",
+    icon: "🚀",
+    colorClass: "from-emerald-400 to-teal-500",
   },
   {
     title: "學習統計",
     href: "/stats",
-    description: "查看題庫分布、錯題分布與學習弱點。",
+    description: "查看自己的題目表現、錯題分布與需要加強的地方。",
+    icon: "📈",
+    colorClass: "from-pink-400 to-rose-500",
   },
 ];
 
@@ -49,16 +61,22 @@ const adminCards: HomeCard[] = [
     title: "教材管理",
     href: "/admin/sources",
     description: "管理教材、AI 分析、建立題庫與刪除教材。",
+    icon: "🗂️",
+    colorClass: "from-slate-500 to-slate-700",
   },
   {
     title: "題庫管理",
     href: "/admin/questions",
     description: "檢視、產生與刪除 AI 題目。",
+    icon: "📝",
+    colorClass: "from-slate-500 to-slate-700",
   },
   {
     title: "AI分析",
     href: "/admin/ai-analysis",
     description: "查看教材 AI 分析與處理狀態。",
+    icon: "🤖",
+    colorClass: "from-slate-500 to-slate-700",
   },
 ];
 
@@ -107,39 +125,27 @@ function FeatureCard({ card }: { card: HomeCard }) {
   return (
     <Link
       href={card.href}
-      className="group relative block overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+      className="group relative block overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-6 shadow-sm ring-1 ring-slate-100 transition hover:-translate-y-1 hover:shadow-xl"
     >
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 opacity-90"
+        className={`absolute inset-x-0 top-0 h-2 bg-gradient-to-r ${card.colorClass}`}
         aria-hidden="true"
       />
 
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              aria-hidden="true"
-            >
-              <path
-                d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4.5"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-              <path
-                d="M7.5 3.5h9a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-              />
-            </svg>
+      <div
+        className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${card.colorClass} opacity-10 blur-2xl transition group-hover:opacity-20`}
+        aria-hidden="true"
+      />
+
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3">
+          <div
+            className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${card.colorClass} text-2xl shadow-sm`}
+          >
+            {card.icon}
           </div>
 
-          <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+          <h2 className="text-xl font-bold tracking-tight text-slate-900">
             {card.title}
           </h2>
 
@@ -148,33 +154,10 @@ function FeatureCard({ card }: { card: HomeCard }) {
           </p>
         </div>
 
-        <div className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-blue-700">
-          <span className="opacity-0 transition-opacity group-hover:opacity-100">
-            開啟
-          </span>
-
-          <svg
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-            aria-hidden="true"
-          >
-            <path
-              d="M7.5 4.5 13 10l-5.5 5.5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+        <div className="mt-1 rounded-full bg-slate-50 px-3 py-1 text-sm font-medium text-slate-500 transition group-hover:bg-blue-50 group-hover:text-blue-700">
+          開始 →
         </div>
       </div>
-
-      <div
-        className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br from-blue-100 to-sky-50 opacity-0 blur-2xl transition-opacity group-hover:opacity-100"
-        aria-hidden="true"
-      />
     </Link>
   );
 }
@@ -183,44 +166,14 @@ function AdminLoginCard() {
   return (
     <Link
       href="/login?redirectedFrom=/admin/sources"
-      className="group relative block overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+      className="group relative block overflow-hidden rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 opacity-90"
-        aria-hidden="true"
-      />
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+          🔐
+        </div>
 
-      <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 14.5v2"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-              <path
-                d="M7 10.5V8a5 5 0 0 1 10 0v2.5"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-              <path
-                d="M6.5 10.5h11a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18v-6a1.5 1.5 0 0 1 1.5-1.5Z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-
           <h2 className="text-lg font-semibold tracking-tight text-slate-900">
             管理者登入
           </h2>
@@ -228,28 +181,10 @@ function AdminLoginCard() {
           <p className="text-sm leading-6 text-slate-600">
             管理者登入後可管理教材、題庫與 AI 分析流程。
           </p>
-        </div>
 
-        <div className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-blue-700">
-          <span className="opacity-0 transition-opacity group-hover:opacity-100">
-            登入
+          <span className="mt-1 text-sm font-medium text-blue-700">
+            前往登入 →
           </span>
-
-          <svg
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-            aria-hidden="true"
-          >
-            <path
-              d="M7.5 4.5 13 10l-5.5 5.5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
         </div>
       </div>
     </Link>
@@ -258,42 +193,17 @@ function AdminLoginCard() {
 
 function NoAdminAccessCard() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-600 ring-1 ring-slate-200">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5"
-          aria-hidden="true"
-        >
-          <path
-            d="M12 9v4"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-          <path
-            d="M12 16.5h.01"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-          />
-          <path
-            d="M10.3 4.5 3.8 16a2 2 0 0 0 1.7 3h13a2 2 0 0 0 1.7-3L13.7 4.5a2 2 0 0 0-3.4 0Z"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinejoin="round"
-          />
-        </svg>
+    <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+        🙋
       </div>
 
       <h2 className="mt-3 text-lg font-semibold tracking-tight text-slate-900">
-        此帳號沒有後台權限
+        目前是學生帳號
       </h2>
 
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        目前登入的帳號可以使用學生功能；後台管理需 admin 或 teacher 權限。
+        這個帳號可以使用測驗、錯題庫、錯題複習與學習統計；後台管理需 admin 或 teacher 權限。
       </p>
     </div>
   );
@@ -304,7 +214,7 @@ function LogoutButton() {
     <form action="/api/auth/logout" method="post">
       <button
         type="submit"
-        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+        className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700"
       >
         登出
       </button>
@@ -321,15 +231,27 @@ export default async function Home() {
     profile?.display_name || profile?.username || user?.email || "使用者";
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16 sm:py-20">
-        <header className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200/60 bg-white px-3 py-1 text-sm font-medium text-blue-700 shadow-sm">
-              <span
-                className="h-2 w-2 rounded-full bg-blue-500"
-                aria-hidden="true"
-              />
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-sky-50 via-indigo-50 to-pink-50 font-sans text-slate-900">
+      <div
+        className="pointer-events-none absolute left-[-8rem] top-[-8rem] h-80 w-80 rounded-full bg-sky-300/30 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute right-[-8rem] top-32 h-96 w-96 rounded-full bg-pink-300/30 blur-3xl"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute bottom-[-10rem] left-1/3 h-96 w-96 rounded-full bg-amber-200/40 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12 sm:py-16">
+        <header className="rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-sm backdrop-blur sm:p-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200/70 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm">
+              <span className="text-base" aria-hidden="true">
+                ✨
+              </span>
               AI 輔助學習流程
             </div>
 
@@ -338,7 +260,7 @@ export default async function Home() {
                 <>
                   <Link
                     href={isAdminUser ? "/admin/sources" : "/practice"}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                    className="rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-violet-700"
                   >
                     {isAdminUser ? "後台管理" : "我的學習"}
                   </Link>
@@ -349,14 +271,14 @@ export default async function Home() {
                 <>
                   <Link
                     href="/login"
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                    className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                   >
                     登入帳號
                   </Link>
 
                   <Link
                     href="/signup"
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                    className="rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-violet-700"
                   >
                     註冊帳號
                   </Link>
@@ -365,32 +287,66 @@ export default async function Home() {
             </div>
           </div>
 
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-            AI 國中家教題庫
-          </h1>
+          <div className="mt-8 grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-end">
+            <div>
+              <h1 className="text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
+                AI 國中家教題庫
+              </h1>
 
-          <p className="text-base leading-7 text-slate-600 sm:text-lg">
-            教材 → AI分析 → 題庫 → 出卷 → 批改 → 錯題加強
-          </p>
+              <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
+                上傳教材、AI 整理重點、依科目出題練習，答錯的題目會自動進入錯題庫，幫你一步一步補強弱點。
+              </p>
 
-          {isLoggedIn && (
-            <p className="text-sm leading-6 text-slate-500">
-              目前登入：{displayName}
-            </p>
-          )}
+              <div className="mt-6 flex flex-wrap gap-2 text-sm font-medium">
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">
+                  教材上傳
+                </span>
+                <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">
+                  AI 分析
+                </span>
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">
+                  線上測驗
+                </span>
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
+                  錯題加強
+                </span>
+              </div>
+
+              {isLoggedIn && (
+                <p className="mt-5 text-sm leading-6 text-slate-500">
+                  目前登入：{displayName}
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-violet-600 to-pink-500 p-6 text-white shadow-lg">
+              <p className="text-sm font-semibold text-white/80">今日任務</p>
+              <h2 className="mt-2 text-2xl font-bold">先練 5 題就好！</h2>
+              <p className="mt-3 text-sm leading-6 text-white/85">
+                不用一次讀很多，從一小組題目開始，錯題會幫你自動留下來複習。
+              </p>
+
+              <Link
+                href="/practice"
+                className="mt-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-50"
+              >
+                開始練習 →
+              </Link>
+            </div>
+          </div>
         </header>
 
         <section
           aria-label="學生功能入口"
-          className="rounded-3xl border border-blue-100 bg-blue-50/50 p-5 sm:p-6"
+          className="rounded-[2rem] border border-white/70 bg-white/60 p-5 shadow-sm backdrop-blur sm:p-6"
         >
           <div className="mb-5 flex flex-col gap-2">
-            <p className="text-sm font-medium text-blue-700">學生使用</p>
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-              上傳教材與開始練習
+            <p className="text-sm font-bold text-blue-700">學生使用</p>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900">
+              選一個功能，開始今天的學習
             </h2>
             <p className="text-sm leading-6 text-slate-600">
-              學生可以上傳教材、線上測驗、查看錯題與學習統計。
+              可以先測驗，也可以先整理教材；答錯沒關係，錯題庫會幫你記住要加強的地方。
             </p>
           </div>
 
@@ -401,17 +357,20 @@ export default async function Home() {
           </div>
         </section>
 
-        <section aria-label="管理者功能入口">
+        <section
+          aria-label="管理者功能入口"
+          className="rounded-[2rem] border border-white/70 bg-white/50 p-5 shadow-sm backdrop-blur sm:p-6"
+        >
           <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-slate-500">管理者使用</p>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-                {isAdminUser ? "後台管理" : "管理者登入"}
+              <p className="text-sm font-bold text-slate-500">管理者使用</p>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900">
+                {isAdminUser ? "後台管理" : "管理者入口"}
               </h2>
               <p className="text-sm leading-6 text-slate-600">
                 {isAdminUser
                   ? "管理教材、題庫與 AI 分析流程。"
-                  : "管理功能需具備 admin 或 teacher 權限。"}
+                  : "後台管理功能需具備 admin 或 teacher 權限。"}
               </p>
             </div>
 
@@ -431,7 +390,7 @@ export default async function Home() {
           )}
         </section>
 
-        <footer className="pt-2 text-sm text-slate-500">
+        <footer className="pt-2 text-center text-sm text-slate-500">
           AI 國中家教題庫 MVP：教材、題庫、測驗、錯題複習與學習統計。
         </footer>
       </main>
