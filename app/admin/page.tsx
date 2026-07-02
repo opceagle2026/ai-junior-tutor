@@ -1,4 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { fetchQuestions, type QuestionItem } from "@/lib/questions";
+import { fetchSources } from "@/lib/sources";
+import type { SourceItem } from "@/types/sources";
 
 const adminCards = [
   {
@@ -48,7 +54,95 @@ const workflowSteps = [
   },
 ];
 
+function StatCard({
+  title,
+  value,
+  unit,
+  description,
+  className,
+}: {
+  title: string;
+  value: number | string;
+  unit: string;
+  description: string;
+  className: string;
+}) {
+  return (
+    <div className={`rounded-3xl border p-5 shadow-sm ${className}`}>
+      <p className="text-sm font-black">{title}</p>
+
+      <p className="mt-3 text-4xl font-black">
+        {value}
+        <span className="ml-1 text-lg font-bold opacity-70">{unit}</span>
+      </p>
+
+      <p className="mt-2 text-xs font-bold opacity-80">{description}</p>
+    </div>
+  );
+}
+
 export default function AdminPage() {
+  const [sources, setSources] = useState<SourceItem[]>([]);
+  const [questions, setQuestions] = useState<QuestionItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    async function loadDashboard() {
+      setIsLoading(true);
+      setMessage("");
+
+      try {
+        const [sourceData, questionData] = await Promise.all([
+          fetchSources(),
+          fetchQuestions(),
+        ]);
+
+        setSources(sourceData);
+        setQuestions(questionData);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "載入後台統計失敗");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void loadDashboard();
+  }, []);
+
+  const sourceStats = useMemo(() => {
+    return sources.reduce(
+      (stats, source) => {
+        stats.total += 1;
+
+        if (source.status === "completed") {
+          stats.completed += 1;
+        }
+
+        if (source.status === "failed") {
+          stats.failed += 1;
+        }
+
+        if (source.status === "uploaded" || source.status === "analyzing") {
+          stats.pending += 1;
+        }
+
+        return stats;
+      },
+      {
+        total: 0,
+        completed: 0,
+        failed: 0,
+        pending: 0,
+      },
+    );
+  }, [sources]);
+
+  const completedRate =
+    sourceStats.total === 0
+      ? 0
+      : Math.round((sourceStats.completed / sourceStats.total) * 100);
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50 to-sky-50 px-6 py-10 text-slate-900 sm:py-16">
       <div
@@ -102,18 +196,63 @@ export default function AdminPage() {
 
             <div className="rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-700 p-6 text-white shadow-lg">
               <p className="text-sm font-semibold text-white/80">
-                管理流程
+                整體分析完成率
               </p>
 
-              <p className="mt-2 text-3xl font-black">
-                教材 → 分析 → 題庫
+              <p className="mt-2 text-5xl font-black">
+                {isLoading ? "…" : completedRate}
+                <span className="ml-1 text-2xl font-bold text-white/80">
+                  %
+                </span>
               </p>
 
               <p className="mt-3 text-sm leading-6 text-white/85">
-                建議先到教材管理頁新增教材，再到 AI 分析儀表板確認狀態，最後進入題庫管理檢視題目。
+                {isLoading
+                  ? "正在讀取後台統計資料..."
+                  : `目前共有 ${sourceStats.total} 份教材，其中 ${sourceStats.completed} 份已完成分析。`}
               </p>
             </div>
           </div>
+        </section>
+
+        {message && (
+          <div className="rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm leading-6 text-red-700 shadow-sm">
+            {message}
+          </div>
+        )}
+
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="教材總數"
+            value={isLoading ? "…" : sourceStats.total}
+            unit="份"
+            description="目前後台已建立的教材來源"
+            className="border-sky-100 bg-sky-50 text-sky-700"
+          />
+
+          <StatCard
+            title="已完成分析"
+            value={isLoading ? "…" : sourceStats.completed}
+            unit="份"
+            description="可用於建立題庫的教材"
+            className="border-emerald-100 bg-emerald-50 text-emerald-700"
+          />
+
+          <StatCard
+            title="題庫總題數"
+            value={isLoading ? "…" : questions.length}
+            unit="題"
+            description="目前可供測驗使用的題目"
+            className="border-violet-100 bg-violet-50 text-violet-700"
+          />
+
+          <StatCard
+            title="分析失敗"
+            value={isLoading ? "…" : sourceStats.failed}
+            unit="份"
+            description="建議回教材管理重新分析"
+            className="border-red-100 bg-red-50 text-red-700"
+          />
         </section>
 
         <section className="grid gap-5 md:grid-cols-3">
@@ -195,6 +334,15 @@ export default function AdminPage() {
               <p className="mt-1">
                 如果教材分析失敗，可以到「教材管理」重新分析；如果題目內容不適合，可以到「題庫管理」刪除題目。學生端只會使用已建立的題庫與自己的錯題紀錄。
               </p>
+
+              {sourceStats.failed > 0 && (
+                <Link
+                  href="/admin/sources"
+                  className="mt-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold text-red-700 shadow-sm hover:bg-red-50"
+                >
+                  有 {sourceStats.failed} 份教材分析失敗，前往處理 →
+                </Link>
+              )}
             </div>
           </div>
         </section>
