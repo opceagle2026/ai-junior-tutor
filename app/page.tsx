@@ -62,21 +62,21 @@ const adminCards: HomeCard[] = [
     href: "/admin/sources",
     description: "管理教材、AI 分析、建立題庫與刪除教材。",
     icon: "🗂️",
-    colorClass: "from-slate-500 to-slate-700",
+    colorClass: "from-sky-500 to-blue-600",
   },
   {
     title: "題庫管理",
     href: "/admin/questions",
     description: "檢視、產生與刪除 AI 題目。",
     icon: "📝",
-    colorClass: "from-slate-500 to-slate-700",
+    colorClass: "from-violet-500 to-purple-600",
   },
   {
-    title: "AI分析",
+    title: "AI 分析儀表板",
     href: "/admin/ai-analysis",
     description: "查看教材 AI 分析與處理狀態。",
     icon: "🤖",
-    colorClass: "from-slate-500 to-slate-700",
+    colorClass: "from-emerald-500 to-teal-600",
   },
 ];
 
@@ -165,7 +165,7 @@ function FeatureCard({ card }: { card: HomeCard }) {
 function AdminLoginCard() {
   return (
     <Link
-      href="/login?redirectedFrom=/admin/sources"
+      href="/login?redirectedFrom=/admin"
       className="group relative block overflow-hidden rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <div className="flex items-start gap-4">
@@ -179,7 +179,7 @@ function AdminLoginCard() {
           </h2>
 
           <p className="text-sm leading-6 text-slate-600">
-            管理者登入後可管理教材、題庫與 AI 分析流程。
+            管理者登入後可進入後台首頁，管理教材、題庫與 AI 分析流程。
           </p>
 
           <span className="mt-1 text-sm font-medium text-blue-700">
@@ -259,10 +259,10 @@ export default async function Home() {
               {isLoggedIn ? (
                 <>
                   <Link
-                    href={isAdminUser ? "/admin/sources" : "/practice"}
+                    href={isAdminUser ? "/admin" : "/practice"}
                     className="rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-violet-700"
                   >
-                    {isAdminUser ? "後台管理" : "我的學習"}
+                    {isAdminUser ? "進入後台管理" : "我的學習"}
                   </Link>
 
                   <LogoutButton />
@@ -320,17 +320,25 @@ export default async function Home() {
             </div>
 
             <div className="rounded-3xl bg-gradient-to-br from-blue-600 via-violet-600 to-pink-500 p-6 text-white shadow-lg">
-              <p className="text-sm font-semibold text-white/80">今日任務</p>
-              <h2 className="mt-2 text-2xl font-bold">先練 5 題就好！</h2>
+              <p className="text-sm font-semibold text-white/80">
+                {isAdminUser ? "管理提醒" : "今日任務"}
+              </p>
+
+              <h2 className="mt-2 text-2xl font-bold">
+                {isAdminUser ? "先進後台總覽！" : "先練 5 題就好！"}
+              </h2>
+
               <p className="mt-3 text-sm leading-6 text-white/85">
-                不用一次讀很多，從一小組題目開始，錯題會幫你自動留下來複習。
+                {isAdminUser
+                  ? "從後台首頁可以快速進入教材管理、題庫管理與 AI 分析儀表板。"
+                  : "不用一次讀很多，從一小組題目開始，錯題會幫你自動留下來複習。"}
               </p>
 
               <Link
-                href="/practice"
+                href={isAdminUser ? "/admin" : "/practice"}
                 className="mt-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-50"
               >
-                開始練習 →
+                {isAdminUser ? "進入後台 →" : "開始練習 →"}
               </Link>
             </div>
           </div>
@@ -365,11 +373,11 @@ export default async function Home() {
             <div className="flex flex-col gap-2">
               <p className="text-sm font-bold text-slate-500">管理者使用</p>
               <h2 className="text-2xl font-black tracking-tight text-slate-900">
-                {isAdminUser ? "後台管理" : "管理者入口"}
+                {isAdminUser ? "後台管理中心" : "管理者入口"}
               </h2>
               <p className="text-sm leading-6 text-slate-600">
                 {isAdminUser
-                  ? "管理教材、題庫與 AI 分析流程。"
+                  ? "建議先進入後台首頁，再依需求管理教材、題庫與 AI 分析流程。"
                   : "後台管理功能需具備 admin 或 teacher 權限。"}
               </p>
             </div>
@@ -378,10 +386,42 @@ export default async function Home() {
           </div>
 
           {isAdminUser ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {adminCards.map((card) => (
-                <FeatureCard key={card.title} card={card} />
-              ))}
+            <div className="flex flex-col gap-5">
+              <Link
+                href="/admin"
+                className="group relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-700 p-6 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+              >
+                <div
+                  className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl transition group-hover:bg-white/20"
+                  aria-hidden="true"
+                />
+
+                <div className="relative grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+                  <div>
+                    <div className="inline-flex rounded-full bg-white/15 px-4 py-2 text-sm font-bold text-white">
+                      🛠️ 後台總覽
+                    </div>
+
+                    <h3 className="mt-4 text-2xl font-black tracking-tight">
+                      進入後台管理首頁
+                    </h3>
+
+                    <p className="mt-2 max-w-2xl text-sm leading-7 text-white/85">
+                      從這裡統一進入教材管理、題庫管理與 AI 分析儀表板，依照「教材 → 分析 → 題庫」流程管理整個系統。
+                    </p>
+                  </div>
+
+                  <div className="inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-black text-blue-700 shadow-sm">
+                    進入後台 →
+                  </div>
+                </div>
+              </Link>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {adminCards.map((card) => (
+                  <FeatureCard key={card.title} card={card} />
+                ))}
+              </div>
             </div>
           ) : isLoggedIn ? (
             <NoAdminAccessCard />
