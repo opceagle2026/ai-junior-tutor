@@ -19,10 +19,24 @@ const STATUS_LABELS: Record<SourceStatus, string> = {
 };
 
 const STATUS_STYLES: Record<SourceStatus, string> = {
-  uploaded: "bg-blue-50 text-blue-700 ring-blue-100",
-  analyzing: "bg-amber-50 text-amber-700 ring-amber-100",
-  completed: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  failed: "bg-red-50 text-red-700 ring-red-100",
+  uploaded: "bg-sky-100 text-sky-700 ring-sky-200",
+  analyzing: "bg-amber-100 text-amber-700 ring-amber-200",
+  completed: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+  failed: "bg-red-100 text-red-700 ring-red-200",
+};
+
+const STATUS_DOT_STYLES: Record<SourceStatus, string> = {
+  uploaded: "bg-sky-500",
+  analyzing: "bg-amber-500",
+  completed: "bg-emerald-500",
+  failed: "bg-red-500",
+};
+
+const STATUS_BAR_STYLES: Record<SourceStatus, string> = {
+  uploaded: "from-sky-400 via-blue-500 to-indigo-500",
+  analyzing: "from-amber-400 via-orange-500 to-rose-500",
+  completed: "from-emerald-400 via-teal-500 to-cyan-500",
+  failed: "from-red-400 via-rose-500 to-pink-500",
 };
 
 const SUBJECT_FILTERS = ["全部科目", ...SUPPORTED_SUBJECTS] as const;
@@ -63,6 +77,22 @@ function getAnalyzeButtonLabel(source: SourceItem, isActionDisabled?: boolean) {
   }
 
   return "AI 分析教材";
+}
+
+function getSourceFileName(source: SourceItem) {
+  if (source.fileName) {
+    return source.fileName;
+  }
+
+  return "網路教材或無檔名";
+}
+
+function getDisplayValue(value: string | null | undefined) {
+  if (!value || value === "AI 自動判斷") {
+    return "待判斷";
+  }
+
+  return value;
 }
 
 export function SourceList({
@@ -139,36 +169,44 @@ export function SourceList({
   }
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">教材列表</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            可依科目與年級篩選教材，也可刪除教材與相關題目。
+          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
+            <span aria-hidden="true">🗂️</span>
+            教材列表
+          </div>
+
+          <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900">
+            已建立的教材來源
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            可依科目與年級篩選教材，也可重新分析、刪除教材與相關題目。
           </p>
         </div>
 
-        <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-100">
+        <span className="w-fit rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700 ring-1 ring-blue-200">
           顯示 {filteredSources.length} / {visibleSources.length} 筆
         </span>
       </div>
 
       {deleteMessage && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 text-sm leading-6 text-blue-800 shadow-sm">
           {deleteMessage}
         </div>
       )}
 
       {visibleSources.length > 0 && (
-        <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-slate-700">科目</span>
+        <div className="grid gap-4 rounded-3xl border border-slate-100 bg-slate-50/80 p-5 sm:grid-cols-2">
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold text-slate-700">科目</span>
             <select
               value={subjectFilter}
               onChange={(event) =>
                 setSubjectFilter(event.target.value as SubjectFilter)
               }
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
             >
               {SUBJECT_FILTERS.map((subject) => (
                 <option key={subject} value={subject}>
@@ -178,14 +216,14 @@ export function SourceList({
             </select>
           </label>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-slate-700">年級</span>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold text-slate-700">年級</span>
             <select
               value={gradeFilter}
               onChange={(event) =>
                 setGradeFilter(event.target.value as GradeFilter)
               }
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
             >
               {GRADE_FILTERS.map((grade) => (
                 <option key={grade} value={grade}>
@@ -198,19 +236,19 @@ export function SourceList({
       )}
 
       {isLoading ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-sm text-slate-500">
           載入教材列表中…
         </div>
       ) : visibleSources.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-sm text-slate-500">
           尚無教材，請上傳檔案並填寫標題與年級後加入。
         </div>
       ) : filteredSources.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-sm text-slate-500">
           目前沒有符合篩選條件的教材。
         </div>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-4">
           {filteredSources.map((source) => {
             const canAnalyze =
               !isActionDisabled &&
@@ -224,106 +262,135 @@ export function SourceList({
             return (
               <li
                 key={source.id}
-                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-200"
+                className="overflow-hidden rounded-3xl border border-slate-100 bg-slate-50/80 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-semibold text-slate-900">
-                      {source.title}
-                    </h3>
-                    <div className="flex flex-wrap gap-2 text-sm">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
-                        {source.grade}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
-                        {source.subject}
-                      </span>
-                    </div>
-                  </div>
+                <div
+                  className={`h-1.5 bg-gradient-to-r ${STATUS_BAR_STYLES[source.status]}`}
+                  aria-hidden="true"
+                />
 
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${STATUS_STYLES[source.status]}`}
-                  >
-                    {STATUS_LABELS[source.status]}
-                  </span>
-                </div>
-
-                <dl className="mt-3 grid gap-2 border-t border-slate-100 pt-3 text-sm sm:grid-cols-2">
-                  <div>
-                    <dt className="text-xs text-slate-500">檔名</dt>
-                    <dd className="break-all font-medium text-slate-800">
-                      {source.fileName}
-                    </dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-xs text-slate-500">狀態</dt>
-                    <dd className="font-medium text-slate-800">
-                      {STATUS_LABELS[source.status]}
-                    </dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-xs text-slate-500">AI 判斷科目</dt>
-                    <dd className="font-medium text-slate-800">
-                      {source.subject}
-                    </dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-xs text-slate-500">AI 判斷單元</dt>
-                    <dd className="font-medium text-slate-800">
-                      {source.unit}
-                    </dd>
-                  </div>
-                </dl>
-
-                {source.status === "failed" && (
-                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700">
-                    <p className="font-medium">失敗原因</p>
-                    <p className="mt-1">{failedReason}</p>
-                  </div>
-                )}
-
-                {source.knowledgePoints.length > 0 && (
-                  <div className="mt-3 border-t border-slate-100 pt-3">
-                    <p className="text-xs text-slate-500">知識點</p>
-                    <div className="mt-1.5 flex flex-wrap gap-2">
-                      {source.knowledgePoints.map((point) => (
+                <div className="p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span
-                          key={point}
-                          className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-100"
+                          className={`h-2.5 w-2.5 rounded-full ${STATUS_DOT_STYLES[source.status]}`}
+                          aria-hidden="true"
+                        />
+
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ring-1 ${STATUS_STYLES[source.status]}`}
                         >
-                          {point}
+                          {STATUS_LABELS[source.status]}
                         </span>
-                      ))}
+
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 shadow-sm">
+                          {getDisplayValue(source.grade)}
+                        </span>
+
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 shadow-sm">
+                          {getDisplayValue(source.subject)}
+                        </span>
+                      </div>
+
+                      <h3 className="mt-3 break-words text-lg font-black leading-7 text-slate-900">
+                        {source.title}
+                      </h3>
+
+                      <p className="mt-2 break-all text-xs leading-5 text-slate-500">
+                        {getSourceFileName(source)}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onAnalyze(source.id)}
+                        disabled={!canAnalyze}
+                        className="inline-flex items-center rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:from-blue-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300"
+                      >
+                        {getAnalyzeButtonLabel(source, isActionDisabled)}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSource(source)}
+                        disabled={
+                          isDeleting ||
+                          deletingSourceId !== null ||
+                          isActionDisabled ||
+                          source.status === "analyzing"
+                        }
+                        className="inline-flex items-center rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                      >
+                        {isDeleting ? "刪除中…" : "刪除教材"}
+                      </button>
                     </div>
                   </div>
-                )}
 
-                <div className="mt-4 flex flex-wrap gap-3 border-t border-slate-100 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => onAnalyze(source.id)}
-                    disabled={!canAnalyze}
-                    className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                  >
-                    {getAnalyzeButtonLabel(source, isActionDisabled)}
-                  </button>
+                  <dl className="mt-5 grid gap-3 border-t border-slate-200 pt-5 text-sm sm:grid-cols-2">
+                    <div className="rounded-2xl bg-white p-4 shadow-sm">
+                      <dt className="text-xs font-bold text-slate-500">
+                        AI 判斷科目
+                      </dt>
+                      <dd className="mt-1 font-black text-slate-800">
+                        {getDisplayValue(source.subject)}
+                      </dd>
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteSource(source)}
-                    disabled={
-                      isDeleting ||
-                      deletingSourceId !== null ||
-                      isActionDisabled ||
-                      source.status === "analyzing"
-                    }
-                    className="inline-flex items-center rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                  >
-                    {isDeleting ? "刪除中…" : "刪除教材"}
-                  </button>
+                    <div className="rounded-2xl bg-white p-4 shadow-sm">
+                      <dt className="text-xs font-bold text-slate-500">
+                        AI 判斷單元
+                      </dt>
+                      <dd className="mt-1 font-black text-slate-800">
+                        {getDisplayValue(source.unit)}
+                      </dd>
+                    </div>
+
+                    <div className="rounded-2xl bg-white p-4 shadow-sm">
+                      <dt className="text-xs font-bold text-slate-500">
+                        年級
+                      </dt>
+                      <dd className="mt-1 font-black text-slate-800">
+                        {getDisplayValue(source.grade)}
+                      </dd>
+                    </div>
+
+                    <div className="rounded-2xl bg-white p-4 shadow-sm">
+                      <dt className="text-xs font-bold text-slate-500">
+                        狀態
+                      </dt>
+                      <dd className="mt-1 font-black text-slate-800">
+                        {STATUS_LABELS[source.status]}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {source.status === "failed" && (
+                    <div className="mt-4 rounded-2xl border border-red-100 bg-red-50/90 px-4 py-3 text-sm leading-6 text-red-700">
+                      <p className="font-black">失敗原因</p>
+                      <p className="mt-1">{failedReason}</p>
+                    </div>
+                  )}
+
+                  {source.knowledgePoints.length > 0 && (
+                    <div className="mt-4 border-t border-slate-200 pt-4">
+                      <p className="text-xs font-bold text-slate-500">
+                        知識點
+                      </p>
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {source.knowledgePoints.map((point) => (
+                          <span
+                            key={point}
+                            className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 ring-1 ring-blue-200"
+                          >
+                            {point}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </li>
             );
