@@ -16,7 +16,7 @@ type SourceFormProps = {
 };
 
 const inputClassName =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100";
+  "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100";
 
 export function SourceForm({
   values,
@@ -38,18 +38,43 @@ export function SourceForm({
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-slate-900">教材資訊</h2>
+    <section className="flex flex-col gap-5">
+      <div>
+        <div className="inline-flex w-fit items-center gap-2 rounded-full bg-violet-100 px-4 py-2 text-sm font-bold text-violet-700">
+          <span aria-hidden="true">📝</span>
+          教材設定
+        </div>
 
-      <p className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800">
-        年級、科目與單元將由 AI 分析教材後自動判斷。若你已確定年級，也可以手動指定。
-      </p>
+        <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900">
+          補充教材基本資訊
+        </h2>
 
-      <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className="text-sm font-medium text-slate-700">
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          標題可自行填寫，也可以留空讓系統使用檔名；年級可手動指定，或交由 AI 自動判斷。
+        </p>
+      </div>
+
+      <div className="rounded-3xl border border-blue-100 bg-blue-50/80 p-5 text-sm leading-7 text-blue-800">
+        <div className="flex gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-2xl">
+            💡
+          </div>
+
+          <div>
+            <p className="font-black text-blue-900">AI 會自動分析教材內容</p>
+            <p className="mt-1">
+              科目、單元與知識點會在教材分析後自動判斷。若教材年級已經很明確，可以先手動指定年級，讓後續建題更穩定。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="grid gap-5 sm:grid-cols-2">
+        <label className="flex flex-col gap-2 sm:col-span-2">
+          <span className="text-sm font-bold text-slate-700">
             標題（可不填）
           </span>
+
           <input
             type="text"
             value={values.title}
@@ -57,10 +82,15 @@ export function SourceForm({
             placeholder="可自訂教材標題；不填時會使用檔名"
             className={inputClassName}
           />
+
+          <span className="text-xs leading-5 text-slate-500">
+            批次上傳多個檔案時，如果有填標題，系統會以「標題 - 檔名」建立多筆教材。
+          </span>
         </label>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-slate-700">年級</span>
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-bold text-slate-700">年級</span>
+
           <select
             required
             value={values.grade}
@@ -75,13 +105,17 @@ export function SourceForm({
               </option>
             ))}
           </select>
+
+          <span className="text-xs leading-5 text-slate-500">
+            不確定年級時，可維持「AI 自動判斷」。
+          </span>
         </label>
 
-        <div className="sm:col-span-2">
+        <div className="flex items-end sm:justify-end">
           <button
             type="submit"
             disabled={disabled}
-            className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+            className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:from-blue-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 sm:w-auto"
           >
             {isSubmitting ? "自動建立中…" : "新增教材並自動建立題庫"}
           </button>
