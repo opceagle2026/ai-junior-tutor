@@ -259,6 +259,13 @@ export default async function Home() {
               {isLoggedIn ? (
                 <>
                   <Link
+                    href="/about"
+                    className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    使用說明
+                  </Link>
+
+                  <Link
                     href={isAdminUser ? "/admin" : "/practice"}
                     className="rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-violet-700"
                   >
@@ -269,6 +276,13 @@ export default async function Home() {
                 </>
               ) : (
                 <>
+                  <Link
+                    href="/about"
+                    className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    使用說明
+                  </Link>
+
                   <Link
                     href="/login"
                     className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
