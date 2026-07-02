@@ -18,6 +18,57 @@ function toLocalEmail(username: string) {
   return `${username}@${LOCAL_ACCOUNT_DOMAIN}`;
 }
 
+function getSignupErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "註冊失敗，請稍後再試。";
+  }
+
+  const message = error.message;
+
+  if (
+    message.includes("User already registered") ||
+    message.includes("already registered") ||
+    message.includes("already been registered") ||
+    message.includes("duplicate key") ||
+    message.includes("profiles_username_key")
+  ) {
+    return "這個帳號已經被使用，請換一個帳號。";
+  }
+
+  if (
+    message.includes("Password should be at least") ||
+    message.includes("password")
+  ) {
+    return "密碼至少需要 6 個字，請重新輸入。";
+  }
+
+  if (
+    message.includes("Signup is disabled") ||
+    message.includes("signups are disabled") ||
+    message.includes("Email signups are disabled")
+  ) {
+    return "目前尚未開放註冊，請確認 Supabase 的註冊設定。";
+  }
+
+  if (
+    message.includes("rate limit") ||
+    message.includes("Too many requests") ||
+    message.includes("email rate limit exceeded")
+  ) {
+    return "嘗試次數過多，請稍等一下再註冊。";
+  }
+
+  if (message.includes("Database error saving new user")) {
+    return "帳號已建立時發生資料庫寫入問題，請稍後再試，或換一個帳號重新註冊。";
+  }
+
+  if (message.includes("Email address") && message.includes("invalid")) {
+    return "帳號格式無法建立，請只使用英文字母、數字或底線。";
+  }
+
+  return message || "註冊失敗，請稍後再試。";
+}
+
 export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -35,11 +86,16 @@ export default function SignupPage() {
   async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (isLoading) {
+      return;
+    }
+
     setIsLoading(true);
     setMessage("");
 
     try {
       const normalizedUsername = normalizeUsername(username);
+      const trimmedDisplayName = displayName.trim();
 
       if (!isValidUsername(normalizedUsername)) {
         throw new Error(
@@ -56,6 +112,7 @@ export default function SignupPage() {
       }
 
       const email = toLocalEmail(normalizedUsername);
+      const finalDisplayName = trimmedDisplayName || normalizedUsername;
 
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -63,7 +120,7 @@ export default function SignupPage() {
         options: {
           data: {
             username: normalizedUsername,
-            display_name: displayName.trim() || normalizedUsername,
+            display_name: finalDisplayName,
             role: "student",
           },
         },
@@ -84,7 +141,7 @@ export default function SignupPage() {
         email,
         role: "student",
         username: normalizedUsername,
-        display_name: displayName.trim() || normalizedUsername,
+        display_name: finalDisplayName,
       });
 
       if (profileError) {
@@ -93,11 +150,14 @@ export default function SignupPage() {
 
       window.location.href = "/practice";
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "註冊失敗");
+      setMessage(getSignupErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
   }
+
+  const isSubmitDisabled =
+    isLoading || !username.trim() || !password || !confirmPassword;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-sky-50 via-indigo-50 to-pink-50 px-6 py-10 text-slate-900 sm:py-16">
@@ -244,7 +304,7 @@ export default function SignupPage() {
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isSubmitDisabled}
                 className="w-full rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-5 py-3 font-bold text-white shadow-sm hover:from-blue-700 hover:to-violet-700 disabled:from-slate-300 disabled:to-slate-300"
               >
                 {isLoading ? "建立中..." : "建立帳號"}
