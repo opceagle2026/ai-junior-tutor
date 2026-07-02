@@ -2,6 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+function getBaseUrl() {
+  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+}
+
 export async function POST() {
   const cookieStore = await cookies();
 
@@ -22,7 +26,17 @@ export async function POST() {
     },
   );
 
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
 
-  return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"));
+  if (
+    error &&
+    !error.message.includes("Auth session missing") &&
+    !error.message.includes("session missing")
+  ) {
+    console.error("Logout failed:", error.message);
+  }
+
+  return NextResponse.redirect(new URL("/login", getBaseUrl()), {
+    status: 303,
+  });
 }
