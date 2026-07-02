@@ -12,12 +12,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
-
+export const metadata: Metadata = {
   title: "AI 國中家教題庫",
-
   description: "AI 輔助國中學習、線上測驗、錯題複習與學習統計",
-
 };
 
 export default function RootLayout({
@@ -27,10 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="zh-Hant-TW"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }
